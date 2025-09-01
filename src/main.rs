@@ -1,3 +1,24 @@
+use clap::*;
+use kademlia::cli;
 fn main() {
-    println!("Hello, world!");
+    let _args = cli::Cli::parse();
 }
+
+// x-bit ? what is x
+// data format locally ? json ? or a fucking db ? <key, value>
+//
+//
+// STORING process (<string, string>)
+// key, value --> hash(key) --> got the ID --> which nodes should store this ID (hash of the key)
+// --> send the pair over to him
+//
+// we will store on disk --> SQL lite
+//
+//
+//
+// SEARCH process
+// key --> hash(key) --> got the ID --> search in your buckets which nodes might have this key -->
+// call the RPC FIND_VALUE in these nodes, using p2p TCP/IP
+//
+//
+//
