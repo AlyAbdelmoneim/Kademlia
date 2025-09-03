@@ -1,7 +1,10 @@
 use std::net::IpAddr;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Contact {
-    pub node_id: String,
+    pub node_id: [u8; 20],
 
     pub ip_address: IpAddr,
 

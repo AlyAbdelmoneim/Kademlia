@@ -1,6 +1,13 @@
+use serde::{Deserialize, Serialize};
 // the aim of this module is to provide a tcp interface to accept connections and allow rpc between
 // nodes
 //
+//
+// first  byte message type
+// 16 byte IPv6
+// 2 bytes port
+// key
+// velue (if operation is store)
 
 use std::{
     io::Result,
@@ -14,16 +21,23 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn bind(&self, addr: &str) -> Result<Self> {
+    //pub fn new(addr: &str) -> Self {
+    //    Self {
+    //        socket: UdpSocket::bind(addr).unwrap(),
+    //    }
+    //}
+
+    pub fn new(ip_address: &str, port: u16) -> Result<Self> {
+        let addr = format!("{}:{}", ip_address, port);
         let socket = UdpSocket::bind(addr)?;
         socket.set_nonblocking(true)?;
         Ok(Self { socket })
     }
 
-    pub fn send(&self, target: Contact, data: &[u8]) -> std::io::Result<()> {
+    pub fn send(&self, ip_address: &str, port: u16, data: Vec<u8>) -> std::io::Result<()> {
         // get the string of the target ip address + port
-        let addr = format!("{}:{}", target.ip_address, target.port);
-        self.socket.send_to(data, addr)?;
+        let addr = format!("{}:{}", ip_address, port);
+        self.socket.send_to(&data, addr)?;
         Ok(())
     }
 
@@ -32,12 +46,20 @@ impl Network {
         Ok((len, addr))
     }
     pub fn handle_msg(&self) -> Result<()> {
-        // this function should handle the message received
-        // it should parse the message and call the appropriate function
-        // for example if the message is a ping, it should call the ping function
-        // if the message is a store, it should call the store function
-        // if the message is a find_node, it should call the find_node function
-        // if the message is a find_value, it should call the find_value function
         todo!()
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum MessageType {
+    Ping,
+    Store { key: String, value: String },
+    FindValue,
+    FindNode,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Message {
+    pub message_type: MessageType,
+    pub sender: Contact,
 }
