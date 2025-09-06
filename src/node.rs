@@ -3,21 +3,22 @@ use crate::network::Message;
 use crate::network::MessageType;
 use crate::network::*;
 use crate::routing::{Contact, RoutingTable};
+use crate::storage::SqlLiteStorage;
 use crate::storage::Storage;
 use bincode;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 
 // this is the node struct, it should have all the data a node have
-pub struct Node {
+pub struct Node<T: Storage> {
     pub name: String,
     pub contact: Contact,
     pub routing_table: RoutingTable,
-    pub storage: Storage,
+    pub storage: T,
     pub network: Network,
 }
 
-impl Node {
+impl Node<SqlLiteStorage> {
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -27,7 +28,7 @@ impl Node {
                 port: 5173,
             },
             routing_table: RoutingTable {},
-            storage: Storage {},
+            storage: SqlLiteStorage::new("local_database.db").unwrap(),
             network: Network::new("0.0.0.0", 5173).unwrap(),
         }
     }
@@ -36,6 +37,7 @@ impl Node {
         let message_type = MessageType::Store { key, value };
         self.send(target, message_type)
     }
+
     fn send(&self, target: Contact, message_type: MessageType) -> std::io::Result<()> {
         let data = Message {
             message_type,

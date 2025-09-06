@@ -1,19 +1,8 @@
 use serde::{Deserialize, Serialize};
-// the aim of this module is to provide a tcp interface to accept connections and allow rpc between
-// nodes
-//
-//
-// first  byte message type
-// 16 byte IPv6
-// 2 bytes port
-// key
-// velue (if operation is store)
-
 use std::{
     io::Result,
     net::{SocketAddr, UdpSocket},
 };
-
 use crate::routing::Contact;
 
 pub struct Network {
@@ -21,12 +10,6 @@ pub struct Network {
 }
 
 impl Network {
-    //pub fn new(addr: &str) -> Self {
-    //    Self {
-    //        socket: UdpSocket::bind(addr).unwrap(),
-    //    }
-    //}
-
     pub fn new(ip_address: &str, port: u16) -> Result<Self> {
         let addr = format!("{}:{}", ip_address, port);
         let socket = UdpSocket::bind(addr)?;
@@ -34,7 +17,7 @@ impl Network {
         Ok(Self { socket })
     }
 
-    pub fn send(&self, ip_address: &str, port: u16, data: Vec<u8>) -> std::io::Result<()> {
+    pub fn send(&self, ip_address: &str, port: u16, data: Vec<u8>) -> Result<()> {
         // get the string of the target ip address + port
         let addr = format!("{}:{}", ip_address, port);
         self.socket.send_to(&data, addr)?;
@@ -45,6 +28,7 @@ impl Network {
         let (len, addr) = self.socket.recv_from(buf)?;
         Ok((len, addr))
     }
+
     pub fn handle_msg(&self) -> Result<()> {
         todo!()
     }
