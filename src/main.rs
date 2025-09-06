@@ -1,7 +1,10 @@
 use clap::*;
-use kademlia::cli;
+use kademlia::{cli, node::Node};
+//use kademlia::file_operations;
 fn main() {
-    let _args = cli::Cli::parse();
+    let args = cli::Cli::parse();
+    let my_node = Node::new(args);
+    println!("{:?}", my_node);
 }
 
 // x-bit ? what is x

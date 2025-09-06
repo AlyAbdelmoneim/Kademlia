@@ -19,4 +19,12 @@ pub enum Commands {
         #[clap(short, long)]
         value: String,
     },
+
+    Init {
+        #[clap(short, long)]
+        name: String,
+
+        #[clap(short, long)]
+        port: u16,
+    },
 }

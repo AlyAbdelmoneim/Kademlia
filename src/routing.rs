@@ -2,7 +2,7 @@ use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Contact {
     pub node_id: [u8; 20],
 
@@ -12,4 +12,5 @@ pub struct Contact {
 }
 
 // this should have an array or anything of contacts, dividing somehow by bucket number
+#[derive(Debug)]
 pub struct RoutingTable {}

@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod file_operations;
 pub mod hash;
 pub mod network;
 pub mod node;

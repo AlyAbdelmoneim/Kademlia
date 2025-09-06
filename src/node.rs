@@ -1,3 +1,5 @@
+use crate::cli::Cli;
+use crate::cli::Commands;
 use crate::hash;
 use crate::network::Message;
 use crate::network::MessageType;
@@ -5,10 +7,51 @@ use crate::network::*;
 use crate::routing::{Contact, RoutingTable};
 use crate::storage::Storage;
 use bincode;
+use serde::Deserialize;
+use serde::Serialize;
+use std::fs;
+use std::io::Error;
+use std::io::ErrorKind;
+use std::io::Result;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
+use std::path::Path;
 
-// this is the node struct, it should have all the data a node have
+#[derive(Serialize, Deserialize)]
+struct MetaData {
+    name: String,
+    node_id: [u8; 20],
+    port: u16,
+}
+
+impl MetaData {
+    fn load_or_create(args: &Cli) -> Result<Self> {
+        let path = "metadata";
+        if Path::new(path).exists() {
+            Ok(serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap())
+        } else {
+            let (cli_name, cli_port) = match &args.command {
+                Commands::Init { name, port } => (name.clone(), *port),
+                _ => {
+                    return Err(Error::new(
+                        ErrorKind::Other,
+                        "give me the name and port in the cli !!",
+                    ));
+                }
+            };
+
+            let metadata = Self {
+                name: cli_name,
+                node_id: hash::generate_node_id(),
+                port: cli_port,
+            };
+            let _ = fs::write(path, serde_json::to_string_pretty(&metadata).unwrap());
+            Ok(metadata)
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Node {
     pub name: String,
     pub contact: Contact,
@@ -18,17 +61,19 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(name: String) -> Self {
+    pub fn new(args: Cli) -> Self {
+        let metadata = MetaData::load_or_create(&args).unwrap();
+
         Self {
-            name,
+            name: metadata.name,
             contact: Contact {
-                node_id: hash::generate_node_id(),
+                node_id: metadata.node_id,
                 ip_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)),
-                port: 5173,
+                port: metadata.port,
             },
             routing_table: RoutingTable {},
             storage: Storage {},
-            network: Network::new("0.0.0.0", 5173).unwrap(),
+            network: Network::new("0.0.0.0", metadata.port).unwrap(),
         }
     }
 
