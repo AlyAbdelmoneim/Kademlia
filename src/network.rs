@@ -43,7 +43,6 @@ impl Network {
 
         thread::spawn(move || {
             let mut buf = [0; 1024];
-
             loop {
                 match socket.recv_from(&mut buf) {
                     Ok((len, addr)) => {
@@ -56,7 +55,6 @@ impl Network {
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                         // No data received, just continue the loop
-                        println!("No data received, waiting...");
                         thread::sleep(std::time::Duration::from_millis(100));
                     }
                     _ => {}

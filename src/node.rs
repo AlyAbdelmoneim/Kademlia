@@ -79,7 +79,7 @@ impl Node {
             },
             routing_table: RoutingTable {},
             storage: Storage {},
-            network: Network::new("0.0.0.0", metadata.port + 23).unwrap(), // the ip here is to be
+            network: Network::new("0.0.0.0", metadata.port + 12).unwrap(), // the ip here is to be
                                                                            // updated
         }
     }
@@ -181,5 +181,11 @@ impl Node {
             MessageType::FindValue { key } => {}
         }
         Ok(())
+    }
+}
+
+impl Drop for Node {
+    fn drop(&mut self) {
+        println!("dropping node");
     }
 }
