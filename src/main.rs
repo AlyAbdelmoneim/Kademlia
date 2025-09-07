@@ -12,26 +12,19 @@ use kademlia::{
 //use kademlia::file_operations;
 fn main() {
     let args = cli::Cli::parse();
-    let my_node = Node::new(&args);
+    let node_arc = Arc::new(Node::new(&args));
 
-    match args.command {
-        cli::Commands::Ping { address } => {
-            my_node.send_ping(address);
+    let handle = thread::spawn({
+        let node_clone = Arc::clone(&node_arc);
+        move || {
+            Node::listen(node_clone);
         }
-        _ => {
-            let node_clone = Arc::new(my_node);
+    });
 
-            let node_arc_clone = Arc::clone(&node_clone);
-            let handle = thread::spawn(move || {
-                node_arc_clone.listen();
-            });
-
-            println!("{:?}", node_clone);
-            let node_clone2 = Arc::clone(&node_clone);
-            handle_input(node_clone2);
-            let _ = handle.join();
-        }
-    }
+    println!("{:?}", node_arc);
+    let node_clone = Arc::clone(&node_arc);
+    handle_input(node_clone);
+    let _ = handle.join();
 }
 
 fn handle_input(node: Arc<Node>) {
@@ -54,22 +47,3 @@ fn handle_input(node: Arc<Node>) {
         }
     }
 }
-
-// x-bit ? what is x
-// data format locally ? json ? or a fucking db ? <key, value>
-//
-//
-// STORING process (<string, string>)
-// key, value --> hash(key) --> got the ID --> which nodes should store this ID (hash of the key)
-// --> send the pair over to him
-//
-// we will store on disk --> SQL lite
-//
-//
-//
-// SEARCH process
-// key --> hash(key) --> got the ID --> search in your buckets which nodes might have this key -->
-// call the RPC FIND_VALUE in these nodes, using p2p TCP/IP
-//
-//
-//

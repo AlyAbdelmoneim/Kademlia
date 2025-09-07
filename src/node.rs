@@ -16,6 +16,7 @@ use std::io::Result;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::path::Path;
+use std::sync::Arc;
 use std::thread;
 
 #[derive(Serialize, Deserialize)]
@@ -152,20 +153,34 @@ impl Node {
         )
     }
 
-    pub fn listen(&self) {
-        let rx = self.network.start_listening(); // the consuming end of the mpsc channel
+    //pub fn listen(&self) {
+    //    let rx = self.network.start_listening(); // the consuming end of the mpsc channel
+    //
+    //    thread::scope(|scope| {
+    //        // create a thread scope to ensure all threads are joined before
+    //        // exiting
+    //        for (msg, _) in rx {
+    //            let node = self; // borrow is fine within the scope
+    //            scope.spawn(move || {
+    //                println!("Message received!");
+    //                let _ = node.handle_incoming_message(&msg);
+    //            });
+    //        }
+    //    }); // all spawned threads are joined here
+    //}
+    //
+    pub fn listen(node: Arc<Node>) {
+        let rx = node.network.start_listening();
 
-        thread::scope(|scope| {
-            // create a thread scope to ensure all threads are joined before
-            // exiting
-            for (msg, _) in rx {
-                let node = self; // borrow is fine within the scope
-                scope.spawn(move || {
-                    println!("Message received!");
-                    let _ = node.handle_incoming_message(&msg);
-                });
-            }
-        }); // all spawned threads are joined here
+        for (msg, _) in rx {
+            thread::spawn({
+                let node_clone = Arc::clone(&node);
+                let msg_clone = msg.clone();
+                move || {
+                    let _ = node_clone.handle_incoming_message(&msg_clone);
+                }
+            });
+        }
     }
 
     fn handle_incoming_message(&self, message: &Message) -> Result<()> {
