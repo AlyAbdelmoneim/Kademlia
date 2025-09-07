@@ -128,16 +128,7 @@ impl Node {
 
     // this is to reply to a ping with a pong
     fn send_pong(&self, target: Contact) -> Result<()> {
-        let reply_message = Message {
-            message_type: MessageType::Pong,
-            sender: self.contact,
-        };
-
-        // serialization config
-        let config = bincode::config::standard();
-        let data = bincode::serde::encode_to_vec(reply_message, config).unwrap();
-        self.network
-            .send(&(target.ip_address).to_string(), target.port, data)
+        self.send(target, MessageType::Pong)
     }
 
     // this is a generic send method that takes a target contact and a message type
@@ -162,7 +153,7 @@ impl Node {
     }
 
     pub fn listen(&self) {
-        let rx = self.network.start(); // the consuming end of the mpsc channel
+        let rx = self.network.start_listening(); // the consuming end of the mpsc channel
 
         thread::scope(|scope| {
             // create a thread scope to ensure all threads are joined before

@@ -34,7 +34,7 @@ impl Network {
     //    Ok((len, addr))
     //}
 
-    pub fn start(&self) -> Receiver<(Message, SocketAddr)> {
+    pub fn start_listening(&self) -> Receiver<(Message, SocketAddr)> {
         let (tx, rx) = mpsc::channel(); // this is a multiple producers - single consumer channel
         // tx is the producing end, and rx is the consuming end
 
