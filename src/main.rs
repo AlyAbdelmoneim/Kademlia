@@ -1,10 +1,24 @@
 use clap::*;
-use kademlia::{cli, node::Node};
+use kademlia::{
+    cli::{self, Commands},
+    node::Node,
+};
 //use kademlia::file_operations;
 fn main() {
     let args = cli::Cli::parse();
-    let my_node = Node::new(args);
-    println!("{:?}", my_node);
+    let my_node = Node::new(&args);
+    match &args.command {
+        Commands::Ping { address } => {
+            let _ = my_node.send_ping(address.clone());
+        }
+
+        _ => {
+            println!("Starting node...\n\n");
+            println!("Node : {:?}", my_node);
+
+            my_node.listen();
+        }
+    }
 }
 
 // x-bit ? what is x

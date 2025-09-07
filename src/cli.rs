@@ -9,7 +9,6 @@ pub struct Cli {
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum Commands {
-    ///store a key value pair
     Add {
         /// the key to store
         #[clap(short, long)]
@@ -26,5 +25,10 @@ pub enum Commands {
 
         #[clap(short, long)]
         port: u16,
+    },
+
+    Ping {
+        #[clap(short, long)]
+        address: String,
     },
 }
