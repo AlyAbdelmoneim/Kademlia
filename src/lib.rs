@@ -1,4 +1,5 @@
 pub mod cli;
+pub mod database;
 pub mod hash;
 pub mod network;
 pub mod node;
