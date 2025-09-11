@@ -82,7 +82,7 @@ fn handle_input(node: Arc<Node>, shutdown: &Arc<AtomicBool>) {
                 }
             }
             _ => {
-                println!("wtf you want me to do");
+                println!("Unknown command. Available commands: ping, store, get, delete, close");
             }
         }
     }
