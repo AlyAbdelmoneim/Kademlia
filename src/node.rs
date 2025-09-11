@@ -17,6 +17,8 @@ use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::thread;
 
 #[derive(Serialize, Deserialize)]
@@ -80,8 +82,8 @@ impl Node {
             },
             routing_table: RoutingTable {},
             storage: Storage {},
-            network: Network::new("0.0.0.0", metadata.port + 12).unwrap(), // the ip here is to be
-                                                                           // updated
+            network: Network::new("0.0.0.0", metadata.port).unwrap(), // the ip here is to be
+                                                                      // updated
         }
     }
 
@@ -153,26 +155,14 @@ impl Node {
         )
     }
 
-    //pub fn listen(&self) {
-    //    let rx = self.network.start_listening(); // the consuming end of the mpsc channel
-    //
-    //    thread::scope(|scope| {
-    //        // create a thread scope to ensure all threads are joined before
-    //        // exiting
-    //        for (msg, _) in rx {
-    //            let node = self; // borrow is fine within the scope
-    //            scope.spawn(move || {
-    //                println!("Message received!");
-    //                let _ = node.handle_incoming_message(&msg);
-    //            });
-    //        }
-    //    }); // all spawned threads are joined here
-    //}
-    //
-    pub fn listen(node: Arc<Node>) {
+    pub fn listen(node: Arc<Node>, shutdown: Arc<AtomicBool>) {
         let rx = node.network.start_listening();
 
         for (msg, _) in rx {
+            if shutdown.load(Ordering::SeqCst) {
+                println!("shutting down... ");
+                break;
+            }
             thread::spawn({
                 let node_clone = Arc::clone(&node);
                 let msg_clone = msg.clone();
