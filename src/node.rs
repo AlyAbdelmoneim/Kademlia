@@ -1,16 +1,18 @@
 use crate::cli::Cli;
 use crate::cli::Commands;
+use crate::database;
 use crate::hash;
 use crate::network::Message;
 use crate::network::MessageType;
 use crate::network::*;
 use crate::routing::{Contact, RoutingTable};
-use crate::storage::Storage;
 use bincode;
+use rusqlite::Connection;
+use rusqlite::Error as SqError;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fs;
-use std::io::Error;
+use std::io::Error as IoError;
 use std::io::ErrorKind;
 use std::io::Result;
 use std::net::IpAddr;
@@ -20,7 +22,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::thread;
-
 #[derive(Serialize, Deserialize)]
 struct MetaData {
     name: String,
@@ -40,7 +41,7 @@ impl MetaData {
             let (cli_name, cli_port) = match &args.command {
                 Commands::Init { name, port } => (name.clone(), (*port)),
                 _ => {
-                    return Err(Error::new(
+                    return Err(IoError::new(
                         ErrorKind::Other,
                         "give me the name and port in the cli !!",
                     ));
@@ -63,12 +64,13 @@ pub struct Node {
     pub name: String,
     pub contact: Contact,
     pub routing_table: RoutingTable,
-    pub storage: Storage,
+    //pub storage: Database,
     pub network: Network,
+    pub db_url: String,
 }
 
 impl Node {
-    pub fn new(args: &Cli) -> Self {
+    pub fn new(args: &Cli, db_url: &str) -> Self {
         // if the metadata file exists, load it
         // else create the node using the cli args and save it to a file
         let metadata = MetaData::load_or_create(&args).unwrap();
@@ -81,9 +83,8 @@ impl Node {
                 port: metadata.port,
             },
             routing_table: RoutingTable {},
-            storage: Storage {},
             network: Network::new("0.0.0.0", metadata.port).unwrap(), // the ip here is to be
-                                                                      // updated
+            db_url: String::from(db_url),                             // updated
         }
     }
 
@@ -174,23 +175,41 @@ impl Node {
     }
 
     fn handle_incoming_message(&self, message: &Message) -> Result<()> {
+        let connection = Connection::open(&self.db_url)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
         let target = message.sender;
         match &message.message_type {
             MessageType::Ping => {
                 println!("Received PING from {}:{}", target.ip_address, target.port);
                 self.send_pong(target)?;
             }
-            MessageType::Store { key, value } => {}
+
+            MessageType::Store { key, value } => {
+                database::store_pair(&connection, &key, &value).map_err(|e| {
+                    std::io::Error::new(std::io::ErrorKind::Other, format!("couldn't store : {e}"))
+                })?;
+            }
+
             MessageType::Pong => {}
+
             MessageType::FindNode { wanted_id } => {}
-            MessageType::FindValue { key } => {}
+
+            MessageType::FindValue { key } => match database::get_value(&connection, key) {
+                Ok(Some(value)) => {
+                    // maybe send it back to the node that asked
+                }
+                Ok(None) => {
+                    println!("couldn't find a value for that key")
+                }
+                Err(e) => {
+                    return Err(std::io::Error::new(
+                        ErrorKind::Other,
+                        format!("DB Error : {e}"),
+                    ));
+                }
+            },
         }
         Ok(())
-    }
-}
-
-impl Drop for Node {
-    fn drop(&mut self) {
-        println!("dropping node");
     }
 }
