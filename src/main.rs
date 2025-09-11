@@ -61,7 +61,7 @@ fn handle_input(node: Arc<Node>, shutdown: &Arc<AtomicBool>) {
             ["get", key] => match database::get_value(&connection, &String::from(*key)) {
                 Ok(Some(value)) => println!("{}", value),
                 Ok(None) => println!("couldn't find a value for this key"),
-                Err(e) => println!("a7a y3m : {}", e),
+                Err(e) => println!("Database error occurred: {}", e),
             },
             ["close"] => {
                 shutdown.store(true, Ordering::SeqCst);
