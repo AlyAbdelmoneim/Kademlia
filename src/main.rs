@@ -31,17 +31,17 @@ fn main() {
 
     println!("{:?}", node_arc);
     let node_clone = Arc::clone(&node_arc);
-    handle_input(node_clone, &shutdown);
+    handle_input(node_clone, &shutdown, db_url);
     if shutdown.load(Ordering::SeqCst) {
         return;
     }
     let _ = handle.join();
 }
 
-fn handle_input(node: Arc<Node>, shutdown: &Arc<AtomicBool>) {
+fn handle_input(node: Arc<Node>, shutdown: &Arc<AtomicBool>, db_url: &str) {
     let stdin = io::stdin();
-    let connection = Connection::open("mydb.sqlite3").unwrap();
-    database::connect("mydb.sqlite3").unwrap();
+    let connection = Connection::open(db_url).unwrap();
+    database::connect(db_url).unwrap();
     for line in stdin.lock().lines() {
         let input = line.unwrap();
         let parts: Vec<&str> = input.split_whitespace().collect();
