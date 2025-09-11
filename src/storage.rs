@@ -16,13 +16,13 @@ struct SqlLiteData {
 }
 
 pub struct SqlLiteStorage {
-    conn: rusqlite::Connection,
+    // conn: rusqlite::Connection,
 }
 
 impl SqlLiteStorage {
     pub fn new(name: &str) -> Result<Self> {
         let conn = Self::init_db(name).unwrap();
-        Ok(Self { conn })
+        Ok(Self {})
     }
 
     fn init_db(name: &str) -> Result<rusqlite::Connection> {

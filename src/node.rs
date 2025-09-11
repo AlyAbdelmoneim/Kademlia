@@ -57,7 +57,7 @@ impl MetaData {
 }
 
 #[derive(Debug)]
-pub struct Node {
+pub struct Node<T: Storage> {
     pub name: String,
     pub contact: Contact,
     pub routing_table: RoutingTable,
@@ -154,7 +154,7 @@ impl Node<SqlLiteStorage> {
 
     pub fn listen(&self) {
         let rx = self.network.start_listening(); // the consuming end of the mpsc channel
-
+        // let tempNode = Arc()
         thread::scope(|scope| {
             // create a thread scope to ensure all threads are joined before
             // exiting
