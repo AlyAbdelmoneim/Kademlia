@@ -1,64 +1,106 @@
-use rusqlite::Connection;
-use std::{io::Result};
+use rusqlite::{Connection, OptionalExtension, params};
+
+pub type StorageResult<T, E = StorageError> = Result<T, E>;
+
+#[derive(Debug)]
+pub struct StorageError {
+    pub message: String
+}
 
 pub trait Storage<V = String> {
-    fn print(&self) -> Result<()>;
-    fn store(&mut self, key: String, value: V) -> Result<()>;
-    fn get(&self, key: String) -> Option<&V>;
-    fn remove(&mut self, key: String) -> Result<()>;
-    fn contains(&self, key: String) -> bool;
+    fn print(&self) -> StorageResult<()>;
+    fn store(&self, key: &str, value: &V) -> StorageResult<()>;
+    fn get(&self, key: &str) -> StorageResult<Option<V>>;
+    fn remove(&self, key: &str) -> StorageResult<()>;
+    fn contains(&self, key: &str) -> StorageResult<bool>;
 }
 
-struct SqlLiteData {
-    id: i32,
-    value: String,
-    updated_at: String,
+impl From<rusqlite::Error> for StorageError {
+    fn from(error: rusqlite::Error) -> Self {
+        StorageError {
+            message: error.to_string()
+        }
+    }
 }
 
+impl From<StorageError> for std::io::Error {
+    fn from(error: StorageError) -> Self {
+        std::io::Error::new(std::io::ErrorKind::Other, error.message)
+    }
+}
+
+#[derive(Debug)]
 pub struct SqlLiteStorage {
-    // conn: rusqlite::Connection,
+    db_name: String,
 }
 
 impl SqlLiteStorage {
-    pub fn new(name: &str) -> Result<Self> {
-        let conn = Self::init_db(name).unwrap();
-        Ok(Self {})
+    pub fn new(name: &str) -> StorageResult<Self> {
+        Self::init_db(name)?;
+        Ok(Self {
+            db_name: name.to_string(),
+        })
     }
 
-    fn init_db(name: &str) -> Result<rusqlite::Connection> {
-        let conn = Connection::open(name).unwrap();
-        // conn.execute(
-        //         "CREATE TABLE IF NOT EXISTS my_table (
-        //         id INTEGER PRIMARY KEY,
-        //         value TEXT NOT NULL,
-        //         updated_at DATETIME NOT NULL,
-        //         UNIQUE(id)
-        //     )",
-        //     [],
-        // ).unwrap();
-        Ok(conn)
+    fn init_db(name: &str) -> StorageResult<()> {
+        let conn = Connection::open(name)?;
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS data (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )",
+            [],
+        )?;
+        Ok(())
     }
 }
 
 impl Storage for SqlLiteStorage {
-    fn print(&self) -> Result<()> {
+    fn print(&self) -> StorageResult<()> {
         Ok(())
     }
 
-    fn store(&mut self, key: String, value: String) -> Result<()> {
+    fn store(&self, key: &str, value: &String) -> StorageResult<()> {
+        let conn = Connection::open(self.db_name.clone())?;
+        let num = conn.execute(
+            "INSERT INTO data (key, value) VALUES (?1, ?2) 
+            ON CONFLICT 
+            DO
+            UPDATE SET value = ?2
+            WHERE key = ?1",
+            params![key, value],
+        )?;
+        if num == 0 {
+            println!("didn't insert");
+        } else {
+            println!("inserted successfully");
+        }
         Ok(())
     }
 
-    fn get(&self, key: String) -> Option<&String> {
-        static TEMP: String = String::new(); // Empty, not useful
-        Some(&TEMP)
+    fn get(&self, key: &str) -> StorageResult<Option<String>> {
+        let conn = Connection::open(self.db_name.clone())?;
+        Ok(conn.query_row(
+            "SELECT value FROM data WHERE key = ?1",
+            params![key],
+            |row| row.get(0),
+        )
+        .optional()?)
     }
 
-    fn remove(&mut self, key: String) -> Result<()> {
+    fn remove(&self, key: &str) -> StorageResult<()> {
+        let conn = Connection::open(self.db_name.clone())?;
+        let num_of_rows = conn.execute("DELETE FROM data WHERE key = ?1", params![key])?;
+        if num_of_rows > 0 {
+            println!("deleted the pair of key : {} ", key);
+        } else {
+            println!("no such key");
+        }
         Ok(())
     }
 
-    fn contains(&self, key: String) -> bool {
-        false
+    fn contains(&self, key: &str) -> StorageResult<bool> {
+        self.get(key).map(|opt| opt.is_some())
     }
 }
+

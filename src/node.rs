@@ -11,12 +11,15 @@ use bincode;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fs;
-use std::io::Error;
+use std::io::Error as IoError;
 use std::io::ErrorKind;
 use std::io::Result;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 use std::thread;
 
 #[derive(Serialize, Deserialize)]
@@ -38,7 +41,7 @@ impl MetaData {
             let (cli_name, cli_port) = match &args.command {
                 Commands::Init { name, port } => (name.clone(), (*port)),
                 _ => {
-                    return Err(Error::new(
+                    return Err(IoError::new(
                         ErrorKind::Other,
                         "give me the name and port in the cli !!",
                     ));
@@ -79,7 +82,7 @@ impl Node<SqlLiteStorage> {
                 port: metadata.port,
             },
             routing_table: RoutingTable {},
-            storage: SqlLiteStorage::new("local_database.db").unwrap(),
+            storage: SqlLiteStorage::new("local_database.sqlite3").unwrap(),
             network: Network::new("0.0.0.0", 5173).unwrap(),
         }
     }
@@ -152,20 +155,22 @@ impl Node<SqlLiteStorage> {
         )
     }
 
-    pub fn listen(&self) {
-        let rx = self.network.start_listening(); // the consuming end of the mpsc channel
-        // let tempNode = Arc()
-        thread::scope(|scope| {
-            // create a thread scope to ensure all threads are joined before
-            // exiting
-            for (msg, _) in rx {
-                let node = self; // borrow is fine within the scope
-                scope.spawn(move || {
-                    println!("Message received!");
-                    let _ = node.handle_incoming_message(&msg);
-                });
+    pub fn listen(node: Arc<Node<SqlLiteStorage>>, shutdown: Arc<AtomicBool>) {
+        let rx = node.network.start_listening();
+
+        for (msg, _) in rx {
+            if shutdown.load(Ordering::SeqCst) {
+                println!("shutting down... ");
+                break;
             }
-        }); // all spawned threads are joined here
+            thread::spawn({
+                let node_clone = Arc::clone(&node);
+                let msg_clone = msg.clone();
+                move || {
+                    let _ = node_clone.handle_incoming_message(&msg_clone);
+                }
+            });
+        }
     }
 
     fn handle_incoming_message(&self, message: &Message) -> Result<()> {
@@ -175,10 +180,27 @@ impl Node<SqlLiteStorage> {
                 println!("Received PING from {}:{}", target.ip_address, target.port);
                 self.send_pong(target)?;
             }
-            MessageType::Store { key, value } => {}
+
+            MessageType::Store { key, value } => {
+                self.storage.store(key, value)?;
+                // database::store_pair(&connection, &key, &value).map_err(|e| {
+                //     std::io::Error::new(std::io::ErrorKind::Other, format!("couldn't store : {e}"))
+                // })?;
+            }
+
             MessageType::Pong => {}
+
             MessageType::FindNode { wanted_id } => {}
-            MessageType::FindValue { key } => {}
+
+            MessageType::FindValue { key } => match self.storage.get(key) {
+                Ok(Some(value)) => {
+                    // maybe send it back to the node that asked
+                }
+                Ok(None) => {
+                    println!("couldn't find a value for that key")
+                }
+                Err(e) => println!("DB Error: {}", e.message)
+            },
         }
         Ok(())
     }

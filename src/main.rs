@@ -1,41 +1,78 @@
+use std::{
+    io::{self, BufRead},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread,
+};
+
 use clap::*;
 use kademlia::{
-    cli::{self, Commands},
-    node::Node,
+    cli::{self},
+    node::Node, storage::{SqlLiteStorage, Storage},
 };
-//use kademlia::file_operations;
+
 fn main() {
     let args = cli::Cli::parse();
-    let my_node = Node::new(&args);
-    match &args.command {
-        Commands::Ping { address } => {
-            let _ = my_node.send_ping(address.clone());
+    let node_arc = Arc::new(Node::new(&args));
+    let shutdown = Arc::new(AtomicBool::new(false));
+
+    let handle = thread::spawn({
+        let node_clone = Arc::clone(&node_arc);
+        let shutdown_clone = Arc::clone(&shutdown);
+        move || {
+            Node::listen(node_clone, shutdown_clone);
         }
+    });
 
-        _ => {
-            println!("Starting node...\n\n");
-            println!("Node : {:?}", my_node);
+    println!("{:?}", node_arc);
+    let node_clone = Arc::clone(&node_arc);
+    handle_input(node_clone, &shutdown);
+    if shutdown.load(Ordering::SeqCst) {
+        return;
+    }
+    let _ = handle.join();
+}
 
-            my_node.listen();
+fn handle_input(node: Arc<Node<SqlLiteStorage>>, shutdown: &Arc<AtomicBool>) {
+    let stdin = io::stdin();
+    for line in stdin.lock().lines() {
+        let input = line.unwrap();
+        let parts: Vec<&str> = input.split_whitespace().collect();
+
+        match parts.as_slice() {
+            ["ping", address] => {
+                println!("trying to ping");
+                let _ = node.send_ping(address.to_owned().to_owned());
+            }
+            ["store", key, value] => {
+                // store it locally for now, it shouldn't be done like that in kademlia
+                // implementation
+                let _ = node.storage.store(key, &String::from(*value));
+                println!("stored the pair ({}, {})", key, value);
+            }
+            ["get", key] => match node.storage.get(key) {
+                Ok(Some(value)) => println!("{}", value),
+                Ok(None) => println!("couldn't find a value for this key"),
+                Err(e) => println!("Database error occurred: {}", e.message),
+            },
+            ["close"] => {
+                shutdown.store(true, Ordering::SeqCst);
+                return;
+            }
+
+            //["update", key, value] => {
+            //    let _ =
+            //        database::update_pair(&connection, &String::from(*key), &String::from(*value));
+            //    println!("updated the pair ({}, {})", key, value);
+            //}
+            ["delete", key] => {
+                let _ = node.storage.remove(key);
+            }
+            _ => {
+                println!("Unknown command. Available commands: ping, store, get, delete, close");
+            }
         }
     }
 }
-
-// x-bit ? what is x
-// data format locally ? json ? or a fucking db ? <key, value>
-//
-//
-// STORING process (<string, string>)
-// key, value --> hash(key) --> got the ID --> which nodes should store this ID (hash of the key)
-// --> send the pair over to him
-//
-// we will store on disk --> SQL lite
-//
-//
-//
-// SEARCH process
-// key --> hash(key) --> got the ID --> search in your buckets which nodes might have this key -->
-// call the RPC FIND_VALUE in these nodes, using p2p TCP/IP
-//
-//
-//
