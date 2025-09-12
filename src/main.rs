@@ -10,15 +10,12 @@ use std::{
 use clap::*;
 use kademlia::{
     cli::{self},
-    database,
-    node::Node,
+    node::Node, storage::{SqlLiteStorage, Storage},
 };
-use rusqlite::Connection;
 
 fn main() {
-    let db_url = "db.sqlite3";
     let args = cli::Cli::parse();
-    let node_arc = Arc::new(Node::new(&args, db_url));
+    let node_arc = Arc::new(Node::new(&args));
     let shutdown = Arc::new(AtomicBool::new(false));
 
     let handle = thread::spawn({
@@ -31,17 +28,15 @@ fn main() {
 
     println!("{:?}", node_arc);
     let node_clone = Arc::clone(&node_arc);
-    handle_input(node_clone, &shutdown, db_url);
+    handle_input(node_clone, &shutdown);
     if shutdown.load(Ordering::SeqCst) {
         return;
     }
     let _ = handle.join();
 }
 
-fn handle_input(node: Arc<Node>, shutdown: &Arc<AtomicBool>, db_url: &str) {
+fn handle_input(node: Arc<Node<SqlLiteStorage>>, shutdown: &Arc<AtomicBool>) {
     let stdin = io::stdin();
-    let connection = Connection::open(db_url).unwrap();
-    database::connect(db_url).unwrap();
     for line in stdin.lock().lines() {
         let input = line.unwrap();
         let parts: Vec<&str> = input.split_whitespace().collect();
@@ -54,14 +49,13 @@ fn handle_input(node: Arc<Node>, shutdown: &Arc<AtomicBool>, db_url: &str) {
             ["store", key, value] => {
                 // store it locally for now, it shouldn't be done like that in kademlia
                 // implementation
-                let _ =
-                    database::store_pair(&connection, &String::from(*key), &String::from(*value));
+                let _ = node.storage.store(key, &String::from(*value));
                 println!("stored the pair ({}, {})", key, value);
             }
-            ["get", key] => match database::get_value(&connection, &String::from(*key)) {
+            ["get", key] => match node.storage.get(key) {
                 Ok(Some(value)) => println!("{}", value),
                 Ok(None) => println!("couldn't find a value for this key"),
-                Err(e) => println!("Database error occurred: {}", e),
+                Err(e) => println!("Database error occurred: {}", e.message),
             },
             ["close"] => {
                 shutdown.store(true, Ordering::SeqCst);
@@ -74,12 +68,7 @@ fn handle_input(node: Arc<Node>, shutdown: &Arc<AtomicBool>, db_url: &str) {
             //    println!("updated the pair ({}, {})", key, value);
             //}
             ["delete", key] => {
-                let num_of_rows = database::delete_pair(&connection, &String::from(*key));
-                if num_of_rows.unwrap() > 0 {
-                    println!("deleted the pair of key : {} ", key);
-                } else {
-                    println!("no such key");
-                }
+                let _ = node.storage.remove(key);
             }
             _ => {
                 println!("Unknown command. Available commands: ping, store, get, delete, close");

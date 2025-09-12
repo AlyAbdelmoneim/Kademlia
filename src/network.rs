@@ -6,7 +6,6 @@ use std::{
     sync::mpsc::{self, Receiver},
     thread,
 };
-
 #[derive(Debug)]
 pub struct Network {
     socket: UdpSocket,
