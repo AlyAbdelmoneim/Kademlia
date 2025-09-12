@@ -9,7 +9,7 @@ pub struct StorageError {
 
 pub trait Storage<V = String> {
     fn print(&self) -> StorageResult<()>;
-    fn store(&self, key: &str, value: &V) -> StorageResult<()>;
+    fn store(&self, key: &str, value: &V) -> StorageResult<()>; //Note: this should me &mut self ideally if a storage will mutate its own in memory data, however, that will require we update the Arc and how we handle cloning the node and so on ... //probably use mutexes or something..
     fn get(&self, key: &str) -> StorageResult<Option<V>>;
     fn remove(&self, key: &str) -> StorageResult<()>;
     fn contains(&self, key: &str) -> StorageResult<bool>;
