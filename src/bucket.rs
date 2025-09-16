@@ -73,7 +73,7 @@ impl KBucket {
     }
 
     pub fn get_nodes(&self) -> Vec<Contact> {
-        self.nodes.clone().try_into().unwrap()
+        self.nodes.clone().into()
     }
 }
 
