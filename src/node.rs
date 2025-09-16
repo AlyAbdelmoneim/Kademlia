@@ -89,7 +89,8 @@ impl Node<SqlLiteStorage> {
 
     // this method is to ping another node, given its address as a string "ip:port"
     pub fn send_ping(&self, addr: String) -> Result<()> {
-        let dummy_node_id = [0u8; 20]; // dummy node id for now
+        let dummy_node_id = [0u8; 20]; // dummy node id for now, ideally, pinging should depend on
+        // the node id, but for simplicity, we will ignore it for now
 
         let mut parts = addr.split(":");
 
@@ -183,9 +184,6 @@ impl Node<SqlLiteStorage> {
 
             MessageType::Store { key, value } => {
                 self.storage.store(key, value)?;
-                // database::store_pair(&connection, &key, &value).map_err(|e| {
-                //     std::io::Error::new(std::io::ErrorKind::Other, format!("couldn't store : {e}"))
-                // })?;
             }
 
             MessageType::Pong => {}
@@ -199,7 +197,7 @@ impl Node<SqlLiteStorage> {
                 Ok(None) => {
                     println!("couldn't find a value for that key")
                 }
-                Err(e) => println!("DB Error: {}", e.message)
+                Err(e) => println!("DB Error: {}", e.message),
             },
         }
         Ok(())

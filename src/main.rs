@@ -10,7 +10,8 @@ use std::{
 use clap::*;
 use kademlia::{
     cli::{self},
-    node::Node, storage::{SqlLiteStorage, Storage},
+    node::Node,
+    storage::{SqlLiteStorage, Storage},
 };
 
 fn main() {
@@ -61,12 +62,6 @@ fn handle_input(node: Arc<Node<SqlLiteStorage>>, shutdown: &Arc<AtomicBool>) {
                 shutdown.store(true, Ordering::SeqCst);
                 return;
             }
-
-            //["update", key, value] => {
-            //    let _ =
-            //        database::update_pair(&connection, &String::from(*key), &String::from(*value));
-            //    println!("updated the pair ({}, {})", key, value);
-            //}
             ["delete", key] => {
                 let _ = node.storage.remove(key);
             }
