@@ -188,10 +188,10 @@ impl Node<SqlLiteStorage> {
 
             MessageType::Pong => {}
 
-            MessageType::FindNode { wanted_id } => {}
+            MessageType::FindNode { wanted_id: _ } => {}
 
             MessageType::FindValue { key } => match self.storage.get(key) {
-                Ok(Some(value)) => {
+                Ok(Some(_value)) => {
                     // maybe send it back to the node that asked
                 }
                 Ok(None) => {

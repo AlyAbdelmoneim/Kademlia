@@ -1,7 +1,10 @@
+pub mod bucket;
 pub mod cli;
+pub mod config;
 pub mod distance;
 pub mod hash;
 pub mod network;
 pub mod node;
 pub mod routing;
+pub mod routing_table;
 pub mod storage;
