@@ -6,7 +6,7 @@ use std::collections::VecDeque;
 pub struct KBucket {
     pub i: usize, // each bucket's nodes-ids range is from 2^i to 2^(i+1)
     pub capacity: usize,
-    pub nodes: VecDeque<Contact>,
+    nodes: VecDeque<Contact>,
 }
 
 impl KBucket {
@@ -74,6 +74,6 @@ impl KBucket {
     }
 
     pub fn get_nodes(&self) -> Vec<Contact> {
-        self.nodes.clone().try_into().unwrap()
+        self.nodes.clone().into()
     }
 }
