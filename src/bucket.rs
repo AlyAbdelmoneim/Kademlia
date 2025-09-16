@@ -1,7 +1,8 @@
 use crate::config::K;
-use crate::routing::Contact;
+use crate::contact::Contact;
 use std::collections::VecDeque;
 
+#[derive(Clone, Debug)]
 pub struct KBucket {
     pub i: usize, // each bucket's nodes-ids range is from 2^i to 2^(i+1)
     pub capacity: usize,
@@ -42,9 +43,9 @@ impl KBucket {
         }
     }
 
-    fn contains(&self, wanted_node: Contact) -> bool {
-        self.nodes.iter().any(|n| n.node_id == wanted_node.node_id)
-    }
+    //fn contains(&self, wanted_node: Contact) -> bool {
+    //    self.nodes.iter().any(|n| n.node_id == wanted_node.node_id)
+    //}
 
     // why do we need this ?
     pub fn get_head(&self) -> Option<Contact> {
@@ -76,4 +77,3 @@ impl KBucket {
         self.nodes.clone().try_into().unwrap()
     }
 }
-

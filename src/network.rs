@@ -1,4 +1,4 @@
-use crate::routing::Contact;
+use crate::contact::Contact;
 use serde::{Deserialize, Serialize};
 use std::{
     io::Result,

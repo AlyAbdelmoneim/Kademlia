@@ -1,10 +1,11 @@
 use crate::cli::Cli;
 use crate::cli::Commands;
+use crate::contact::Contact;
 use crate::hash;
 use crate::network::Message;
 use crate::network::MessageType;
 use crate::network::*;
-use crate::routing::{Contact, RoutingTable};
+use crate::routing_table::RoutingTable;
 use crate::storage::SqlLiteStorage;
 use crate::storage::Storage;
 use bincode;
@@ -81,7 +82,7 @@ impl Node<SqlLiteStorage> {
                 ip_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), // to be updated
                 port: metadata.port,
             },
-            routing_table: RoutingTable {},
+            routing_table: RoutingTable::new(metadata.node_id),
             storage: SqlLiteStorage::new("local_database.sqlite3").unwrap(),
             network: Network::new("0.0.0.0", 5173).unwrap(),
         }
