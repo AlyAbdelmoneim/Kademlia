@@ -42,7 +42,7 @@ impl KBucket {
         }
     }
 
-    fn contains(&self, wanted_node: Contact) -> bool {
+    pub fn contains(&self, wanted_node: Contact) -> bool {
         self.nodes.iter().any(|n| n.node_id == wanted_node.node_id)
     }
 
