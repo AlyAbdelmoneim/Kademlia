@@ -9,7 +9,7 @@ impl Distance {
     pub fn new(a: &[u8; 20], b: &[u8; 20]) -> Self {
         let mut dis = [0u8; 20];
 
-        for i in 0..160 {
+        for i in 0..20 {
             dis[i] = a[i] ^ b[i];
         }
 
