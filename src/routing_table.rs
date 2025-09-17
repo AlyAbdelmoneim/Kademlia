@@ -12,10 +12,10 @@ pub struct RoutingTable {
 }
 
 impl RoutingTable {
-    pub fn new(local_id: [u8; 20]) -> Self {
+    pub fn new(local_node_id: [u8; 20]) -> Self {
         Self {
             buckets: std::array::from_fn(|i| KBucket::new(i)),
-            local_node_id: local_id,
+            local_node_id,
         }
     }
 
