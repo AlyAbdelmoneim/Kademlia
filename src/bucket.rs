@@ -22,7 +22,8 @@ impl KBucket {
         self.nodes.len() == self.capacity
     }
 
-    // Note : we will never actually need to add in the front, nor we will need to sort the
+    // Note : we will never actually need to add in the front, 
+    // nor we will need to sort the
     // list manually because it's ensured that the list is always sorted by last time seen
 
     pub fn add(&mut self, new_node: &Contact) {
