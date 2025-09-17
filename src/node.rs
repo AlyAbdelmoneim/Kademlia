@@ -180,7 +180,7 @@ impl Node<SqlLiteStorage> {
     fn handle_incoming_message(&mut self, message: &Message) -> Result<()> {
         let target = message.sender;
         // update the storage with the new contacts
-        self.routing_table.insert_node(&target.clone());
+        self.routing_table.insert_node(&target);
 
         match &message.message_type {
             MessageType::Ping => {
