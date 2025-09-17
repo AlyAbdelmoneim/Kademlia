@@ -25,7 +25,7 @@ impl KBucket {
     // Note : we will never actually need to add in the front, nor we will need to sort the
     // list manually because it's ensured that the list is always sorted by last time seen
 
-    pub fn add(&mut self, new_node: Contact) {
+    pub fn add(&mut self, new_node: &Contact) {
         // if we already have this node in the bucket, remove it and re-insert it at the end
 
         if let Some(pos) = self
@@ -36,7 +36,7 @@ impl KBucket {
             self.nodes.remove(pos);
         }
 
-        self.nodes.push_back(new_node);
+        self.nodes.push_back(*new_node);
 
         if self.nodes.len() > self.capacity {
             self.nodes.pop_front();

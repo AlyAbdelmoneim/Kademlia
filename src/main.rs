@@ -1,7 +1,7 @@
 use std::{
     io::{self, BufRead},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread,
@@ -16,7 +16,7 @@ use kademlia::{
 
 fn main() {
     let args = cli::Cli::parse();
-    let node_arc = Arc::new(Node::new(&args));
+    let node_arc = Arc::new(Mutex::new(Node::new(&args)));
     let shutdown = Arc::new(AtomicBool::new(false));
 
     let handle = thread::spawn({
@@ -36,7 +36,7 @@ fn main() {
     let _ = handle.join();
 }
 
-fn handle_input(node: Arc<Node<SqlLiteStorage>>, shutdown: &Arc<AtomicBool>) {
+fn handle_input(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: &Arc<AtomicBool>) {
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
         let input = line.unwrap();
@@ -45,15 +45,22 @@ fn handle_input(node: Arc<Node<SqlLiteStorage>>, shutdown: &Arc<AtomicBool>) {
         match parts.as_slice() {
             ["ping", address] => {
                 println!("trying to ping");
-                let _ = node.send_ping(address.to_owned().to_owned());
+                let _ = node
+                    .lock()
+                    .unwrap()
+                    .send_ping(address.to_owned().to_owned());
             }
             ["store", key, value] => {
                 // store it locally for now, it shouldn't be done like that in kademlia
                 // implementation
-                let _ = node.storage.store(key, &String::from(*value));
+                let _ = node
+                    .lock()
+                    .unwrap()
+                    .storage
+                    .store(key, &String::from(*value));
                 println!("stored the pair ({}, {})", key, value);
             }
-            ["get", key] => match node.storage.get(key) {
+            ["get", key] => match node.lock().unwrap().storage.get(key) {
                 Ok(Some(value)) => println!("{}", value),
                 Ok(None) => println!("couldn't find a value for this key"),
                 Err(e) => println!("Database error occurred: {}", e.message),
@@ -63,7 +70,7 @@ fn handle_input(node: Arc<Node<SqlLiteStorage>>, shutdown: &Arc<AtomicBool>) {
                 return;
             }
             ["delete", key] => {
-                let _ = node.storage.remove(key);
+                let _ = node.lock().unwrap().storage.remove(key);
             }
             _ => {
                 println!("Unknown command. Available commands: ping, store, get, delete, close");

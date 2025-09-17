@@ -34,9 +34,9 @@ impl RoutingTable {
         0
     }
 
-    pub fn insert_node(&mut self, new_node: Contact) {
+    pub fn insert_node(&mut self, new_node: &Contact) {
         let bucket = &mut self.buckets[self.find_bucket(new_node.node_id)];
-        bucket.add(new_node);
+        bucket.add(&new_node);
     }
 
     //pub fn find_k_nearest_nodes(&self, target_id: [u8; 20]) -> Vec<Contact> {
