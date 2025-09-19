@@ -1,4 +1,4 @@
-use crate::routing::Contact;
+use crate::contact::Contact;
 use serde::{Deserialize, Serialize};
 use std::{
     io::Result,
@@ -27,11 +27,6 @@ impl Network {
         self.socket.send_to(&data, addr)?;
         Ok(())
     }
-
-    //pub fn rcv(&self, buf: &mut [u8]) -> Result<(usize, SocketAddr)> {
-    //    let (len, addr) = self.socket.recv_from(buf)?;
-    //    Ok((len, addr))
-    //}
 
     pub fn start_listening(&self) -> Receiver<(Message, SocketAddr)> {
         let (tx, rx) = mpsc::channel(); // this is a multiple producers - single consumer channel

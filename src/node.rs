@@ -1,10 +1,11 @@
 use crate::cli::Cli;
 use crate::cli::Commands;
+use crate::contact::Contact;
 use crate::hash;
 use crate::network::Message;
 use crate::network::MessageType;
 use crate::network::*;
-use crate::routing::{Contact, RoutingTable};
+use crate::routing_table::RoutingTable;
 use crate::storage::SqlLiteStorage;
 use crate::storage::Storage;
 use bincode;
@@ -18,6 +19,7 @@ use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::thread;
@@ -81,7 +83,7 @@ impl Node<SqlLiteStorage> {
                 ip_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), // to be updated
                 port: metadata.port,
             },
-            routing_table: RoutingTable {},
+            routing_table: RoutingTable::new(metadata.node_id),
             storage: SqlLiteStorage::new("local_database.sqlite3").unwrap(),
             network: Network::new("0.0.0.0", 5173).unwrap(),
         }
@@ -156,8 +158,8 @@ impl Node<SqlLiteStorage> {
         )
     }
 
-    pub fn listen(node: Arc<Node<SqlLiteStorage>>, shutdown: Arc<AtomicBool>) {
-        let rx = node.network.start_listening();
+    pub fn listen(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: Arc<AtomicBool>) {
+        let rx = node.lock().unwrap().network.start_listening();
 
         for (msg, _) in rx {
             if shutdown.load(Ordering::SeqCst) {
@@ -168,14 +170,18 @@ impl Node<SqlLiteStorage> {
                 let node_clone = Arc::clone(&node);
                 let msg_clone = msg.clone();
                 move || {
-                    let _ = node_clone.handle_incoming_message(&msg_clone);
+                    let mut node = node_clone.lock().unwrap();
+                    let _ = node.handle_incoming_message(&msg_clone);
                 }
             });
         }
     }
 
-    fn handle_incoming_message(&self, message: &Message) -> Result<()> {
+    fn handle_incoming_message(&mut self, message: &Message) -> Result<()> {
         let target = message.sender;
+        // update the storage with the new contacts
+        self.routing_table.insert_node(&target);
+
         match &message.message_type {
             MessageType::Ping => {
                 println!("Received PING from {}:{}", target.ip_address, target.port);
