@@ -27,7 +27,7 @@ fn main() {
         }
     });
 
-    println!("{:?}", node_arc);
+    //println!("{:?}", node_arc);
     let node_clone = Arc::clone(&node_arc);
     handle_input(node_clone, &shutdown);
     if shutdown.load(Ordering::SeqCst) {
