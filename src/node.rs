@@ -12,7 +12,6 @@ use bincode;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fs;
-use std::io::Error as IoError;
 use std::io::ErrorKind;
 use std::io::Result;
 use std::net::IpAddr;
@@ -33,30 +32,53 @@ struct MetaData {
 
 impl MetaData {
     fn load_or_create(args: &Cli) -> Result<Self> {
-        // we need to fix this path, because it returns different paths when running the program
-        // from different directories
-        let path = "metadata";
-
-        if Path::new(path).exists() {
-            Ok(serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap())
-        } else {
-            let (cli_name, cli_port) = match &args.command {
-                Commands::Init { name, port } => (name.clone(), (*port)),
-                _ => {
-                    return Err(IoError::new(
-                        ErrorKind::Other,
-                        "give me the name and port in the cli !!",
-                    ));
+        match &args.command {
+            Commands::Init { name, port } => {
+                let file_name = format!("{}_metadata", name);
+                if Path::new(&file_name).exists() {
+                    let loaded_metadata: MetaData =
+                        serde_json::from_str(&fs::read_to_string(&file_name).unwrap()).unwrap();
+                    match port {
+                        // if found a file and you got a port number ==> override port in file, and
+                        // take node_id from file
+                        Some(port_number) => {
+                            let metadata = Self {
+                                name: loaded_metadata.name,
+                                port: *port_number,
+                                node_id: loaded_metadata.node_id,
+                            };
+                            let _ = fs::write(
+                                file_name,
+                                serde_json::to_string_pretty(&metadata).unwrap(),
+                            );
+                            Ok(metadata)
+                        }
+                        // if founf a file without a port, load the data from the file directly
+                        None => Ok(loaded_metadata),
+                    }
+                } else {
+                    match port {
+                        // No file, but we have the port number, then create the file
+                        Some(port_number) => {
+                            let metadata = Self {
+                                name: (name.clone()),
+                                port: *port_number,
+                                node_id: hash::generate_node_id(),
+                            };
+                            let _ = fs::write(
+                                file_name,
+                                serde_json::to_string_pretty(&metadata).unwrap(),
+                            );
+                            Ok(metadata)
+                        }
+                        // No file and NO  port_number, panic yasta
+                        None => Err(std::io::Error::new(
+                            ErrorKind::Other,
+                            "Please provide port number, since it's the first time you initialize this node",
+                        )),
+                    }
                 }
-            };
-
-            let metadata = Self {
-                name: cli_name,
-                node_id: hash::generate_node_id(),
-                port: cli_port,
-            };
-            let _ = fs::write(path, serde_json::to_string_pretty(&metadata).unwrap());
-            Ok(metadata)
+            }
         }
     }
 }
