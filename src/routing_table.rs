@@ -2,28 +2,28 @@ use crate::{
     bucket::KBucket,
     config::{ID_BITS, K},
     contact::Contact,
-    distance::Distance,
+    sha::SHA,
 };
 
 #[derive(Debug, Clone)]
 pub struct RoutingTable {
     buckets: [KBucket; ID_BITS],
-    local_node_id: [u8; 20],
+    local_node_id: SHA,
 }
 
 impl RoutingTable {
-    pub fn new(local_node_id: [u8; 20]) -> Self {
+    pub fn new(local_node_id: SHA) -> Self {
         Self {
             buckets: std::array::from_fn(|i| KBucket::new(i)),
             local_node_id,
         }
     }
 
-    pub fn find_bucket(&self, target_id: [u8; 20]) -> usize {
-        let distance = Distance::new(&target_id, &self.local_node_id);
+    pub fn find_bucket(&self, target_id: SHA) -> usize {
+        let distance = target_id ^ self.local_node_id;
         let dist = distance.0;
 
-        for (i, &byte) in dist.iter().enumerate() {
+        for (i, &byte) in dist.0.iter().enumerate() {
             if byte != 0 {
                 let leading = byte.leading_zeros() as usize; // 0..8
                 // Big-endian: first byte is most significant
@@ -39,43 +39,7 @@ impl RoutingTable {
         bucket.add(&new_node);
     }
 
-    //pub fn find_k_nearest_nodes(&self, target_id: [u8; 20]) -> Vec<Contact> {
-    //    let nodes = &mut Vec::<Contact>::new();
-    //    let target_node_bucket = &self.buckets[self.find_bucket(target_id)];
-    //    nodes.extend(target_node_bucket.get_nodes());
-    //    return self.push_nodes_in_bucket(
-    //        target_node_bucket.i - 1,
-    //        target_node_bucket.i + 1,
-    //        nodes,
-    //    );
-    //}
-    //
-    //fn push_nodes_in_bucket(
-    //    &self,
-    //    left_bucket_id: usize,
-    //    right_bucket_id: usize,
-    //    nodes: &mut Vec<Contact>,
-    //) -> Vec<Contact> {
-    //    //TODO: also, is -1 and +1 correct? where is the binary tree?
-    //    //TODO: enhance and optimize, lots of useless gets and unnnecassry if conditions and shit...
-    //    if (nodes.len() > K) {
-    //        return nodes.drain(0..K).collect();
-    //    }
-    //    let left_bucket = self.buckets.get(left_bucket_id);
-    //    let right_bucket = self.buckets.get(right_bucket_id);
-    //    if (left_bucket.is_none() && right_bucket.is_none()) {
-    //        return nodes.clone();
-    //    }
-    //    if let Some(bucket) = left_bucket {
-    //        nodes.extend(bucket.get_nodes());
-    //    }
-    //    if let Some(bucket) = right_bucket {
-    //        nodes.extend(bucket.get_nodes());
-    //    }
-    //    return self.push_nodes_in_bucket(left_bucket_id - 1, right_bucket_id + 1, nodes);
-    //}
-
-    pub fn find_k_nearest_nodes(&self, target_id: [u8; 20]) -> Vec<Contact> {
+    pub fn find_k_nearest_nodes(&self, target_id: SHA) -> Vec<Contact> {
         let mut nodes = Vec::new();
         let i = self.find_bucket(target_id);
         nodes.extend(self.buckets[i].get_nodes());
@@ -95,7 +59,7 @@ impl RoutingTable {
         }
 
         // sort the contacts by distance to target_id
-        nodes.sort_by_key(|contact| Distance::new(&contact.node_id, &target_id));
+        nodes.sort_by_key(|contact| contact.node_id ^ target_id);
 
         if nodes.len() > K {
             nodes.truncate(K);

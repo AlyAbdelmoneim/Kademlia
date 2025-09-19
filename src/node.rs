@@ -1,11 +1,11 @@
 use crate::cli::Cli;
 use crate::cli::Commands;
 use crate::contact::Contact;
-use crate::hash;
 use crate::network::Message;
 use crate::network::MessageType;
 use crate::network::*;
 use crate::routing_table::RoutingTable;
+use crate::sha::SHA;
 use crate::storage::SqlLiteStorage;
 use crate::storage::Storage;
 use bincode;
@@ -27,7 +27,7 @@ use std::thread;
 #[derive(Serialize, Deserialize)]
 struct MetaData {
     name: String,
-    node_id: [u8; 20],
+    node_id: SHA,
     port: u16,
 }
 
@@ -52,7 +52,7 @@ impl MetaData {
 
             let metadata = Self {
                 name: cli_name,
-                node_id: hash::generate_node_id(),
+                node_id: SHA::generate(),
                 port: cli_port,
             };
             let _ = fs::write(path, serde_json::to_string_pretty(&metadata).unwrap());
@@ -91,7 +91,7 @@ impl Node<SqlLiteStorage> {
 
     // this method is to ping another node, given its address as a string "ip:port"
     pub fn send_ping(&self, addr: String) -> Result<()> {
-        let dummy_node_id = [0u8; 20]; // dummy node id for now, ideally, pinging should depend on
+        let dummy_node_id = SHA([0u8; 20]); // dummy node id for now, ideally, pinging should depend on
         // the node id, but for simplicity, we will ignore it for now
 
         let mut parts = addr.split(":");
