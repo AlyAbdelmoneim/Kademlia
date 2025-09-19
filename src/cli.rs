@@ -9,26 +9,11 @@ pub struct Cli {
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum Commands {
-    Add {
-        /// the key to store
-        #[clap(short, long)]
-        key: String,
-
-        /// the value to store
-        #[clap(short, long)]
-        value: String,
-    },
-
     Init {
         #[clap(short, long)]
         name: String,
 
         #[clap(short, long)]
-        port: u16,
-    },
-
-    Ping {
-        #[clap(short, long)]
-        address: String,
+        port: Option<u16>,
     },
 }
