@@ -5,7 +5,7 @@ use crate::sha::SHA;
 // Ord to be able to do sorting
 // PartialOrd to be able to do sorting with <, >, <=, >=
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct Distance(pub SHA);
+pub struct Distance(pub [u8; 20]);
 
 impl Distance {
     pub fn new(a: &SHA, b: &SHA) -> Self {
@@ -14,6 +14,6 @@ impl Distance {
             dis[i] = a.0[i] ^ b.0[i];
         }
 
-        Self(SHA(dis))
+        Self(dis)
     }
 }

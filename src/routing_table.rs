@@ -23,7 +23,7 @@ impl RoutingTable {
         let distance = target_id ^ self.local_node_id;
         let dist = distance.0;
 
-        for (i, &byte) in dist.0.iter().enumerate() {
+        for (i, &byte) in dist.iter().enumerate() {
             if byte != 0 {
                 let leading = byte.leading_zeros() as usize; // 0..8
                 // Big-endian: first byte is most significant
