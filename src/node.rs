@@ -9,6 +9,7 @@ use crate::routing_table::RoutingTable;
 use crate::storage::SqlLiteStorage;
 use crate::storage::Storage;
 use bincode;
+use regex::Regex;
 use serde::Deserialize;
 use serde::Serialize;
 use std::fs;
@@ -34,7 +35,9 @@ impl MetaData {
     fn load_or_create(args: &Cli) -> Result<Self> {
         match &args.command {
             Commands::Init { name, port } => {
-                let file_name = format!("{}_metadata", name);
+                let regex = Regex::new(r"\s+").unwrap();
+                let regexed_name = regex.replace_all(name, "_");
+                let file_name = format!("{}_metadata", regexed_name);
                 if Path::new(&file_name).exists() {
                     let loaded_metadata: MetaData =
                         serde_json::from_str(&fs::read_to_string(&file_name).unwrap()).unwrap();
