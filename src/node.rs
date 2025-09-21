@@ -29,12 +29,19 @@ struct MetaData {
     name: String,
     node_id: SHA,
     port: u16,
+    bootstrap_ip: Option<String>,
+    bootstrap_port: Option<u16>,
 }
 
 impl MetaData {
     fn load_or_create(args: &Cli) -> Result<Self> {
         match &args.command {
-            Commands::Init { name, port } => {
+            Commands::Init {
+                name,
+                port,
+                bootstrap_ip,
+                bootstrap_port,
+            } => {
                 let regex = Regex::new(r"\s+").unwrap();
                 let regexed_name = regex.replace_all(name, "_");
                 let file_name = format!("{}_metadata", regexed_name);
@@ -49,6 +56,8 @@ impl MetaData {
                                 name: loaded_metadata.name,
                                 port: *port_number,
                                 node_id: loaded_metadata.node_id,
+                                bootstrap_ip: bootstrap_ip.clone(),
+                                bootstrap_port: *bootstrap_port,
                             };
                             let _ = fs::write(
                                 file_name,
@@ -67,6 +76,8 @@ impl MetaData {
                                 name: (name.clone()),
                                 port: *port_number,
                                 node_id: SHA::generate(),
+                                bootstrap_ip: bootstrap_ip.clone(),
+                                bootstrap_port: *bootstrap_port,
                             };
                             let _ = fs::write(
                                 file_name,
@@ -100,8 +111,10 @@ impl Node<SqlLiteStorage> {
         // if the metadata file exists, load it
         // else create the node using the cli args and save it to a file
         let metadata = MetaData::load_or_create(&args).unwrap();
+        let bootstrap_ip = metadata.bootstrap_ip;
+        let bootstrap_port = metadata.bootstrap_port;
 
-        Self {
+        let node = Self {
             name: metadata.name,
             contact: Contact {
                 node_id: metadata.node_id,
@@ -111,7 +124,24 @@ impl Node<SqlLiteStorage> {
             routing_table: RoutingTable::new(metadata.node_id),
             storage: SqlLiteStorage::new("local_database.sqlite3").unwrap(),
             network: Network::new("0.0.0.0", metadata.port).unwrap(),
+        };
+
+        if let (Some(ip), Some(port)) = (bootstrap_ip, bootstrap_port) {
+            let _ = node.send_get_node_id(ip.clone(), port);
         }
+        node
+    }
+
+    fn send_get_node_id(&self, ip: String, port: u16) -> Result<()> {
+        let data = Message {
+            message_type: MessageType::GetNodeId,
+            sender: self.contact.clone(),
+        };
+        // NOTE : I'm using the network layer's send function because the node layer's version
+        // requires that we have the target full contact, which is not the case here
+        let config = bincode::config::standard();
+        let serialized_message = bincode::serde::encode_to_vec(data, config).unwrap();
+        self.network.send(&ip, port, serialized_message)
     }
 
     // this method is to ping another node, given its address as a string "ip:port"
@@ -168,6 +198,15 @@ impl Node<SqlLiteStorage> {
     fn send_pong(&self, target: Contact) -> Result<()> {
         println!("Sending PONG to {}:{}", target.ip_address, target.port);
         self.send(target, MessageType::Pong)
+    }
+
+    fn send_node_id(&self, target: Contact) -> Result<()> {
+        self.send(target, MessageType::SendNodeId)
+    }
+
+    fn add_bootstrap_node_to_routing_table(&mut self, bootstrap_contact: Contact) {
+        println!("inserting bootstrap node : {:?}", bootstrap_contact);
+        self.routing_table.insert_node(&bootstrap_contact);
     }
 
     // this is a generic send method that takes a target contact and a message type
@@ -240,6 +279,12 @@ impl Node<SqlLiteStorage> {
                 }
                 Err(e) => println!("DB Error: {}", e.message),
             },
+            MessageType::GetNodeId => {
+                self.send_node_id(target)?;
+            }
+            MessageType::SendNodeId => {
+                self.add_bootstrap_node_to_routing_table(target);
+            }
         }
         Ok(())
     }
