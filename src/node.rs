@@ -127,46 +127,48 @@ impl Node<SqlLiteStorage> {
         };
 
         if let (Some(ip), Some(port)) = (bootstrap_ip, bootstrap_port) {
-            if let Err(e) = node.send_get_node_id(ip.clone(), port) {
-                eprintln!("Failed to connect to bootstrap node at {}:{}: {}", ip, port, e);
+            let bootstrap_addr = format!("{}:{}", ip, port);
+            if let Err(e) = node.send_ping(bootstrap_addr) {
+                eprintln!(
+                    "Failed to connect to bootstrap node at {}:{}: {}",
+                    ip, port, e
+                );
             }
         }
+
+        println!(
+            "Node is running !\nPort : {}\nIP : {}\nNode_ID : {:?}",
+            node.contact.port, node.contact.ip_address, node.contact.node_id
+        );
+
         node
     }
 
-    fn send_get_node_id(&self, ip: String, port: u16) -> Result<()> {
-        let data = Message {
-            message_type: MessageType::GetNodeId,
-            sender: self.contact.clone(),
-        };
-        // NOTE : I'm using the network layer's send function because the node layer's version
-        // requires that we have the target full contact, which is not the case here
-        let config = bincode::config::standard();
-        let serialized_message = bincode::serde::encode_to_vec(data, config).unwrap();
-        self.network.send(&ip, port, serialized_message)
-    }
+    //fn send_get_node_id(&self, ip: String, port: u16) -> Result<()> {
+    //    let data = Message {
+    //        message_type: MessageType::GetNodeId,
+    //        sender: self.contact.clone(),
+    //    };
+    //    // NOTE : I'm using the network layer's send function because the node layer's version
+    //    // requires that we have the target full contact, which is not the case here
+    //    let config = bincode::config::standard();
+    //    let serialized_message = bincode::serde::encode_to_vec(data, config).unwrap();
+    //    self.network.send(&ip, port, serialized_message)
+    //}
 
     // this method is to ping another node, given its address as a string "ip:port"
-    pub fn send_ping(&self, addr: String) -> Result<()> {
-        let dummy_node_id = SHA([0u8; 20]); // dummy node id for now, ideally, pinging should depend on
-        // the node id, but for simplicity, we will ignore it for now
+    pub fn send_ping(&self, target_address: String) -> Result<()> {
+        let target_ip = target_address.split(":").next().unwrap().to_string();
+        let target_port = target_address
+            .split(":")
+            .last()
+            .unwrap()
+            .to_string()
+            .parse()
+            .unwrap();
 
-        let mut parts = addr.split(":");
-
-        let ip = parts.next().unwrap().to_owned(); // the ip as a string
-        let port = parts.next().unwrap().to_owned(); // the port as a string
-
-        let ipp: IpAddr = ip.parse().unwrap(); // the ip as an IpAddr
-        let portt: u16 = port.parse().unwrap(); // the port as a u16
-
-        let target_contact = Contact {
-            ip_address: ipp,
-            port: portt,
-            node_id: dummy_node_id, // notice that we don't need to know the node id to ping
-        };
-
-        println!("Sending PING to {}:{}", ip, port);
-        self.send(target_contact, MessageType::Ping)
+        println!("Sending PING to {}:{}", target_ip, target_port);
+        self.send(target_ip, target_port, MessageType::Ping)
     }
 
     // this method is to send a STORE request to a target nodes
@@ -177,7 +179,11 @@ impl Node<SqlLiteStorage> {
         println!("Storing the pair on {} nodes", targets.len());
         for target in targets {
             println!("Sending STORE to {}:{}", target.ip_address, target.port);
-            self.send(target, message_type.clone())?;
+            self.send(
+                target.ip_address.to_string(),
+                target.port,
+                message_type.clone(),
+            )?;
         }
         Ok(())
     }
@@ -191,7 +197,11 @@ impl Node<SqlLiteStorage> {
                 "Sending FIND_VALUE to {}:{}",
                 target.ip_address, target.port
             );
-            self.send(target, MessageType::FindValue { key: key.clone() })?;
+            self.send(
+                target.ip_address.to_string(),
+                target.port,
+                MessageType::FindValue { key: key.clone() },
+            )?;
         }
         Ok(())
     }
@@ -199,20 +209,28 @@ impl Node<SqlLiteStorage> {
     // this is to reply to a ping with a pong
     fn send_pong(&self, target: Contact) -> Result<()> {
         println!("Sending PONG to {}:{}", target.ip_address, target.port);
-        self.send(target, MessageType::Pong)
+        self.send(
+            target.ip_address.to_string(),
+            target.port,
+            MessageType::Pong,
+        )
     }
 
-    fn send_node_id(&self, target: Contact) -> Result<()> {
-        self.send(target, MessageType::SendNodeId)
-    }
+    //fn send_node_id(&self, target: Contact) -> Result<()> {
+    //    self.send(
+    //        target.ip_address.to_string(),
+    //        target.port,
+    //        MessageType::SendNodeId,
+    //    )
+    //}
 
-    fn add_bootstrap_node_to_routing_table(&mut self, bootstrap_contact: Contact) {
-        println!("inserting bootstrap node : {:?}", bootstrap_contact);
-        self.routing_table.insert_node(&bootstrap_contact);
-    }
+    //fn add_bootstrap_node_to_routing_table(&mut self, bootstrap_contact: Contact) {
+    //    println!("inserting bootstrap node : {:?}", bootstrap_contact);
+    //    self.routing_table.insert_node(&bootstrap_contact);
+    //}
 
     // this is a generic send method that takes a target contact and a message type
-    fn send(&self, target: Contact, message_type: MessageType) -> Result<()> {
+    fn send(&self, target_ip: String, target_port: u16, message_type: MessageType) -> Result<()> {
         let data = Message {
             message_type,
             sender: self.contact.clone(),
@@ -221,15 +239,8 @@ impl Node<SqlLiteStorage> {
         let config = bincode::config::standard();
         let serialized_message = bincode::serde::encode_to_vec(data, config).unwrap();
 
-        //println!(
-        //    "Sending message to {}:{}:{:?}",
-        //    target.ip_address, target.port, serialized_message
-        //);
-        self.network.send(
-            &(target.ip_address).to_string(),
-            target.port,
-            serialized_message,
-        )
+        self.network
+            .send(&target_ip.parse().unwrap(), target_port, serialized_message)
     }
 
     pub fn listen(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: Arc<AtomicBool>) {
@@ -281,12 +292,6 @@ impl Node<SqlLiteStorage> {
                 }
                 Err(e) => println!("DB Error: {}", e.message),
             },
-            MessageType::GetNodeId => {
-                self.send_node_id(target)?;
-            }
-            MessageType::SendNodeId => {
-                self.add_bootstrap_node_to_routing_table(target);
-            }
         }
         Ok(())
     }
