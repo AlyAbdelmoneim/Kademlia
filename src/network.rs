@@ -1,4 +1,4 @@
-use crate::contact::Contact;
+use crate::{contact::Contact, sha::SHA};
 use serde::{Deserialize, Serialize};
 use std::{
     io::Result,
@@ -65,7 +65,7 @@ pub enum MessageType {
     Pong,
     Store { key: String, value: String },
     FindValue { key: String },
-    FindNode { wanted_id: [u8; 20] },
+    FindNode { wanted_id: SHA },
 }
 
 #[derive(Serialize, Deserialize, Clone)]

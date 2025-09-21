@@ -1,5 +1,6 @@
 use crate::config::K;
 use crate::contact::Contact;
+use crate::sha::SHA;
 use std::collections::VecDeque;
 
 #[derive(Clone, Debug)]
@@ -66,7 +67,7 @@ impl KBucket {
         Some(self.nodes[self.nodes.len() - 1])
     }
 
-    pub fn find_element(&self, wanted_id: [u8; 20]) -> Option<Contact> {
+    pub fn find_element(&self, wanted_id: SHA) -> Option<Contact> {
         if let Some(wanted_node_index) = self.nodes.iter().position(|n| n.node_id == wanted_id) {
             return Some(self.nodes[wanted_node_index]);
         }
