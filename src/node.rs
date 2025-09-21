@@ -127,7 +127,9 @@ impl Node<SqlLiteStorage> {
         };
 
         if let (Some(ip), Some(port)) = (bootstrap_ip, bootstrap_port) {
-            let _ = node.send_get_node_id(ip.clone(), port);
+            if let Err(e) = node.send_get_node_id(ip.clone(), port) {
+                eprintln!("Failed to connect to bootstrap node at {}:{}: {}", ip, port, e);
+            }
         }
         node
     }
