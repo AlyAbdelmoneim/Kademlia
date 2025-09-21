@@ -40,7 +40,7 @@ impl Network {
             loop {
                 match socket.recv_from(&mut buf) {
                     Ok((len, addr)) => {
-                        println!("Received {} bytes from {}", len, addr);
+                        //println!("Received {} bytes from {}", len, addr);
                         if let Ok((msg, _consumed)) =
                             bincode::serde::decode_from_slice::<Message, _>(&buf[0..len], config)
                         {

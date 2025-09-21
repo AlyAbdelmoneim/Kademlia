@@ -26,8 +26,11 @@ fn main() {
             Node::listen(node_clone, shutdown_clone);
         }
     });
-
-    //println!("{:?}", node_arc);
+    let contact = node_arc.lock().unwrap().contact;
+    println!(
+        "Node is running !\nPort : {}\nIP : {}\nNode_ID : {:?}",
+        contact.port, contact.ip_address, contact.node_id
+    );
     let node_clone = Arc::clone(&node_arc);
     handle_input(node_clone, &shutdown);
     if shutdown.load(Ordering::SeqCst) {

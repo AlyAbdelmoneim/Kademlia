@@ -110,7 +110,7 @@ impl Node<SqlLiteStorage> {
             },
             routing_table: RoutingTable::new(metadata.node_id),
             storage: SqlLiteStorage::new("local_database.sqlite3").unwrap(),
-            network: Network::new("0.0.0.0", 5173).unwrap(),
+            network: Network::new("0.0.0.0", metadata.port).unwrap(),
         }
     }
 
@@ -142,7 +142,9 @@ impl Node<SqlLiteStorage> {
     // same key-value pair on multiple nodes
     pub fn send_store(&self, key: String, value: String, targets: Vec<Contact>) -> Result<()> {
         let message_type = MessageType::Store { key, value };
+        println!("Storing the pair on {} nodes", targets.len());
         for target in targets {
+            println!("Sending STORE to {}:{}", target.ip_address, target.port);
             self.send(target, message_type.clone())?;
         }
         Ok(())
@@ -151,7 +153,12 @@ impl Node<SqlLiteStorage> {
     // this method is to send a FIND_VALUE request to a target nodes
     // notice it takes a vector of contacts, because we might want to query multiple nodes
     pub fn send_find_value(&self, key: String, targets: Vec<Contact>) -> Result<()> {
+        println!("Finding value for the key on {} nodes", targets.len());
         for target in targets {
+            println!(
+                "Sending FIND_VALUE to {}:{}",
+                target.ip_address, target.port
+            );
             self.send(target, MessageType::FindValue { key: key.clone() })?;
         }
         Ok(())
@@ -159,6 +166,7 @@ impl Node<SqlLiteStorage> {
 
     // this is to reply to a ping with a pong
     fn send_pong(&self, target: Contact) -> Result<()> {
+        println!("Sending PONG to {}:{}", target.ip_address, target.port);
         self.send(target, MessageType::Pong)
     }
 
@@ -172,10 +180,10 @@ impl Node<SqlLiteStorage> {
         let config = bincode::config::standard();
         let serialized_message = bincode::serde::encode_to_vec(data, config).unwrap();
 
-        println!(
-            "Sending message to {}:{}:{:?}",
-            target.ip_address, target.port, serialized_message
-        );
+        //println!(
+        //    "Sending message to {}:{}:{:?}",
+        //    target.ip_address, target.port, serialized_message
+        //);
         self.network.send(
             &(target.ip_address).to_string(),
             target.port,
@@ -217,7 +225,9 @@ impl Node<SqlLiteStorage> {
                 self.storage.store(key, value)?;
             }
 
-            MessageType::Pong => {}
+            MessageType::Pong => {
+                println!("Received PONG from {}:{}", target.ip_address, target.port);
+            }
 
             MessageType::FindNode { wanted_id: _ } => {}
 
