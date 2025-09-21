@@ -15,5 +15,11 @@ pub enum Commands {
 
         #[clap(short, long)]
         port: Option<u16>,
+
+        #[clap(long)]
+        bootstrap_ip: Option<String>,
+
+        #[clap(long)]
+        bootstrap_port: Option<u16>,
     },
 }

@@ -4,21 +4,24 @@ pub type StorageResult<T, E = StorageError> = Result<T, E>;
 
 #[derive(Debug)]
 pub struct StorageError {
-    pub message: String
+    pub message: String,
 }
 
 pub trait Storage<V = String> {
     fn print(&self) -> StorageResult<()>;
-    fn store(&self, key: &str, value: &V) -> StorageResult<()>; //Note: this should me &mut self ideally if a storage will mutate its own in memory data, however, that will require we update the Arc and how we handle cloning the node and so on ... //probably use mutexes or something..
+
+    //Note: this should me &mut self ideally if a storage will mutate its own in memory data,
+    //however, that will require we update the Arc and how we handle cloning the node and so on ... //probably use mutexes or something..
+    fn store(&self, key: &str, value: &V) -> StorageResult<()>;
+
     fn get(&self, key: &str) -> StorageResult<Option<V>>;
     fn remove(&self, key: &str) -> StorageResult<()>;
     fn contains(&self, key: &str) -> StorageResult<bool>;
 }
-
 impl From<rusqlite::Error> for StorageError {
     fn from(error: rusqlite::Error) -> Self {
         StorageError {
-            message: error.to_string()
+            message: error.to_string(),
         }
     }
 }
@@ -80,12 +83,13 @@ impl Storage for SqlLiteStorage {
 
     fn get(&self, key: &str) -> StorageResult<Option<String>> {
         let conn = Connection::open(self.db_name.clone())?;
-        Ok(conn.query_row(
-            "SELECT value FROM data WHERE key = ?1",
-            params![key],
-            |row| row.get(0),
-        )
-        .optional()?)
+        Ok(conn
+            .query_row(
+                "SELECT value FROM data WHERE key = ?1",
+                params![key],
+                |row| row.get(0),
+            )
+            .optional()?)
     }
 
     fn remove(&self, key: &str) -> StorageResult<()> {
@@ -103,4 +107,3 @@ impl Storage for SqlLiteStorage {
         self.get(key).map(|opt| opt.is_some())
     }
 }
-
