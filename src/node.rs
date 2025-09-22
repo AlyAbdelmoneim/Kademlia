@@ -240,10 +240,8 @@ impl Node<SqlLiteStorage> {
 
     pub fn store(&self, key: String, value: String) -> Result<()> {
         let key_id = SHA::hash_string(&key);
-        // NOTE : We will need to add an intermediate layer here to get the actual k-nearest nodes
-        // because the kademlia mechanism requires that you repeatedly ask the k-nearest-node for
-        // more close nodes until you end up with the final list
-        // I hope my comment makes sense
+        // TODO: Implement iterative lookup to find the actual k-nearest nodes as per the Kademlia protocol.
+        // Currently, this uses a single lookup, but Kademlia requires repeated queries to refine the list.
         let target_nodes = self.routing_table.find_k_nearest_nodes(key_id);
         self.send_store(key, value, target_nodes)
     }
