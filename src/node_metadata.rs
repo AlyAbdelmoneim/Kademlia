@@ -50,7 +50,7 @@ impl MetaData {
                             );
                             Ok(metadata)
                         }
-                        // if founf a file without a port, load the data from the file directly
+                        // if found a file without a port, load the data from the file directly
                         None => Ok(loaded_metadata),
                     }
                 } else {
