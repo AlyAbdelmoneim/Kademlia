@@ -8,3 +8,4 @@ pub mod node;
 pub mod routing_table;
 pub mod storage;
 pub mod sha;
+pub mod logging;

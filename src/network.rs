@@ -1,4 +1,4 @@
-use crate::{contact::Contact, sha::SHA};
+use crate::{contact::Contact, logInfo, sha::SHA};
 use serde::{Deserialize, Serialize};
 use std::{
     io::Result,
@@ -23,7 +23,7 @@ impl Network {
     pub fn send(&self, ip_address: &String, port: u16, data: Vec<u8>) -> Result<()> {
         // get the string of the target ip address + port
         let addr = format!("{}:{}", ip_address, port);
-        println!("\n\nSending to {} \n\nData : {:?}", addr, data);
+        logInfo!("Sending to {} Data : {:?}", addr, data);
         self.socket.send_to(&data, addr)?;
         Ok(())
     }
@@ -40,7 +40,6 @@ impl Network {
             loop {
                 match socket.recv_from(&mut buf) {
                     Ok((len, addr)) => {
-                        //println!("Received {} bytes from {}", len, addr);
                         if let Ok((msg, _consumed)) =
                             bincode::serde::decode_from_slice::<Message, _>(&buf[0..len], config)
                         {

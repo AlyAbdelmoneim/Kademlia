@@ -1,5 +1,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
+use crate::{logInfo, logWarn};
+
 pub type StorageResult<T, E = StorageError> = Result<T, E>;
 
 #[derive(Debug)]
@@ -74,9 +76,9 @@ impl Storage for SqlLiteStorage {
             params![key, value],
         )?;
         if num == 0 {
-            println!("didn't insert");
+            logWarn!("didn't insert");
         } else {
-            println!("inserted successfully");
+            logInfo!("inserted successfully");
         }
         Ok(())
     }
@@ -96,9 +98,9 @@ impl Storage for SqlLiteStorage {
         let conn = Connection::open(self.db_name.clone())?;
         let num_of_rows = conn.execute("DELETE FROM data WHERE key = ?1", params![key])?;
         if num_of_rows > 0 {
-            println!("deleted the pair of key : {} ", key);
+            logInfo!("deleted the pair of key : {} ", key);
         } else {
-            println!("no such key");
+            logWarn!("no such key");
         }
         Ok(())
     }
