@@ -1,8 +1,8 @@
 use crate::distance::Distance;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::ops::BitXor;
 use sha1::{Digest, Sha1};
+use std::ops::BitXor;
 
 #[derive(Copy, PartialEq, Eq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize)]
 pub struct SHA(pub [u8; 20]);
@@ -16,6 +16,15 @@ impl SHA {
     }
 
     pub fn hash(key: &[u8]) -> Self {
+        let mut hasher = Sha1::new();
+        hasher.update(key);
+        let result = hasher.finalize();
+        let mut id = [0u8; 20];
+        id.copy_from_slice(&result);
+        SHA(id)
+    }
+
+    pub fn hash_string(key: &String) -> Self {
         let mut hasher = Sha1::new();
         hasher.update(key);
         let result = hasher.finalize();

@@ -2,3 +2,5 @@
 src/metadata*
 metadata*
 *_metadata
+*.sqlite3
+local_database*
