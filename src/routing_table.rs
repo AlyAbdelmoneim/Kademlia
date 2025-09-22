@@ -1,8 +1,5 @@
 use crate::{
-    bucket::KBucket,
-    config::{ID_BITS, K},
-    contact::Contact,
-    sha::SHA,
+    bucket::KBucket, config::{ID_BITS, K}, contact::Contact, logInfo, sha::SHA
 };
 
 #[derive(Debug, Clone)]
@@ -35,8 +32,8 @@ impl RoutingTable {
     }
 
     pub fn insert_node(&mut self, new_node: &Contact) {
-        println!(
-            "\ninserting node with address {}:{} to our routing table",
+        logInfo!(
+            "inserting node with address {}:{} to our routing table",
             new_node.ip_address, new_node.port
         );
         let bucket = &mut self.buckets[self.find_bucket(new_node.node_id)];

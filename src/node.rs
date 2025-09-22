@@ -1,11 +1,13 @@
 use crate::cli::Cli;
 use crate::cli::Commands;
 use crate::contact::Contact;
+use crate::logError;
+use crate::logInfo;
+use crate::logWarn;
 use crate::network::Message;
 use crate::network::MessageType;
 use crate::network::*;
 use crate::routing_table::RoutingTable;
-use crate::sha;
 use crate::sha::SHA;
 use crate::storage::SqlLiteStorage;
 use crate::storage::Storage;
@@ -130,17 +132,14 @@ impl Node<SqlLiteStorage> {
         if let (Some(ip), Some(port)) = (bootstrap_ip, bootstrap_port) {
             let bootstrap_addr = format!("{}:{}", ip, port);
             if let Err(e) = node.send_ping(bootstrap_addr) {
-                eprintln!(
+                logError!(
                     "Failed to connect to bootstrap node at {}:{}: {}",
                     ip, port, e
                 );
             }
         }
 
-        println!(
-            "Node is running !\nPort : {}\nIP : {}\nNode_ID : {:?}",
-            node.contact.port, node.contact.ip_address, node.contact.node_id
-        );
+        logInfo!("Node is running! Port:{}, IP:{}, Node_ID:{:?}", node.contact.port, node.contact.ip_address, node.contact.node_id);
 
         node
     }
@@ -156,7 +155,7 @@ impl Node<SqlLiteStorage> {
             .parse()
             .unwrap();
 
-        println!("Sending PING to {}:{}", target_ip, target_port);
+        logInfo!("Sending PING to {}:{}", target_ip, target_port);
         self.send(target_ip, target_port, MessageType::Ping)
     }
 
@@ -165,9 +164,9 @@ impl Node<SqlLiteStorage> {
     // same key-value pair on multiple nodes
     pub fn send_store(&self, key: String, value: String, targets: Vec<Contact>) -> Result<()> {
         let message_type = MessageType::Store { key, value };
-        println!("Storing the pair on {} nodes", targets.len());
+        logInfo!("Storing the pair on {} nodes", targets.len());
         for target in targets {
-            println!("Sending STORE to {}:{}", target.ip_address, target.port);
+            logInfo!("Sending STORE to {}:{}", target.ip_address, target.port);
             self.send(
                 target.ip_address.to_string(),
                 target.port,
@@ -180,9 +179,9 @@ impl Node<SqlLiteStorage> {
     // this method is to send a FIND_VALUE request to a target nodes
     // notice it takes a vector of contacts, because we might want to query multiple nodes
     pub fn send_find_value(&self, key: String, targets: Vec<Contact>) -> Result<()> {
-        println!("Finding value for the key on {} nodes", targets.len());
+        logInfo!("Finding value for the key on {} nodes", targets.len());
         for target in targets {
-            println!(
+            logInfo!(
                 "Sending FIND_VALUE to {}:{}",
                 target.ip_address, target.port
             );
@@ -197,7 +196,7 @@ impl Node<SqlLiteStorage> {
 
     // this is to reply to a ping with a pong
     fn send_pong(&self, target: Contact) -> Result<()> {
-        println!("Sending PONG to {}:{}", target.ip_address, target.port);
+        logInfo!("Sending PONG to {}:{}", target.ip_address, target.port);
         self.send(
             target.ip_address.to_string(),
             target.port,
@@ -224,7 +223,7 @@ impl Node<SqlLiteStorage> {
 
         for (msg, _) in rx {
             if shutdown.load(Ordering::SeqCst) {
-                println!("shutting down... ");
+                logInfo!("shutting down... ");
                 break;
             }
             thread::spawn({
@@ -253,7 +252,7 @@ impl Node<SqlLiteStorage> {
 
         match &message.message_type {
             MessageType::Ping => {
-                println!("Received PING from {}:{}", target.ip_address, target.port);
+                logInfo!("Received PING from {}:{}", target.ip_address, target.port);
                 self.send_pong(target)?;
             }
 
@@ -262,7 +261,7 @@ impl Node<SqlLiteStorage> {
             }
 
             MessageType::Pong => {
-                println!("Received PONG from {}:{}", target.ip_address, target.port);
+                logInfo!("Received PONG from {}:{}", target.ip_address, target.port);
             }
 
             MessageType::FindNode { wanted_id: _ } => {}
@@ -272,9 +271,9 @@ impl Node<SqlLiteStorage> {
                     // maybe send it back to the node that asked
                 }
                 Ok(None) => {
-                    println!("couldn't find a value for that key")
+                    logWarn!("couldn't find a value for that key")
                 }
-                Err(e) => println!("DB Error: {}", e.message),
+                Err(e) => logError!("DB Error: {}", e.message),
             },
         }
         Ok(())

@@ -9,9 +9,7 @@ use std::{
 
 use clap::*;
 use kademlia::{
-    cli::{self},
-    node::Node,
-    storage::{SqlLiteStorage, Storage},
+    cli::{self}, logError, logInfo, logWarn, node::Node, storage::{SqlLiteStorage, Storage}
 };
 
 fn main() {
@@ -42,7 +40,7 @@ fn handle_input(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: &Arc<AtomicBoo
 
         match parts.as_slice() {
             ["ping", address] => {
-                println!("trying to ping");
+                logInfo!("trying to ping");
                 let _ = node
                     .lock()
                     .unwrap()
@@ -55,12 +53,12 @@ fn handle_input(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: &Arc<AtomicBoo
                     .lock()
                     .unwrap()
                     .store((*key).to_string(), (*value).to_string());
-                println!("stored the pair ({}, {})", key, value);
+                logInfo!("stored the pair ({}, {})", key, value);
             }
             ["get", key] => match node.lock().unwrap().storage.get(key) {
-                Ok(Some(value)) => println!("{}", value),
-                Ok(None) => println!("couldn't find a value for this key"),
-                Err(e) => println!("Database error occurred: {}", e.message),
+                Ok(Some(value)) => logInfo!("{}", value),
+                Ok(None) => logInfo!("couldn't find a value for this key"),
+                Err(e) => logError!("Database error occurred: {}", e.message),
             },
             ["close"] => {
                 shutdown.store(true, Ordering::SeqCst);
@@ -70,7 +68,7 @@ fn handle_input(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: &Arc<AtomicBoo
                 let _ = node.lock().unwrap().storage.remove(key);
             }
             _ => {
-                println!("Unknown command. Available commands: ping, store, get, delete, close");
+                logWarn!("Unknown command. Available commands: ping, store, get, delete, close");
             }
         }
     }
