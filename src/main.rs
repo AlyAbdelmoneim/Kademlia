@@ -54,8 +54,7 @@ fn handle_input(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: &Arc<AtomicBoo
                 let _ = node
                     .lock()
                     .unwrap()
-                    .storage
-                    .store(key, &String::from(*value));
+                    .store((*key).to_string(), (*value).to_string());
                 println!("stored the pair ({}, {})", key, value);
             }
             ["get", key] => match node.lock().unwrap().storage.get(key) {

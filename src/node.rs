@@ -5,6 +5,7 @@ use crate::network::Message;
 use crate::network::MessageType;
 use crate::network::*;
 use crate::routing_table::RoutingTable;
+use crate::sha;
 use crate::sha::SHA;
 use crate::storage::SqlLiteStorage;
 use crate::storage::Storage;
@@ -144,18 +145,6 @@ impl Node<SqlLiteStorage> {
         node
     }
 
-    //fn send_get_node_id(&self, ip: String, port: u16) -> Result<()> {
-    //    let data = Message {
-    //        message_type: MessageType::GetNodeId,
-    //        sender: self.contact.clone(),
-    //    };
-    //    // NOTE : I'm using the network layer's send function because the node layer's version
-    //    // requires that we have the target full contact, which is not the case here
-    //    let config = bincode::config::standard();
-    //    let serialized_message = bincode::serde::encode_to_vec(data, config).unwrap();
-    //    self.network.send(&ip, port, serialized_message)
-    //}
-
     // this method is to ping another node, given its address as a string "ip:port"
     pub fn send_ping(&self, target_address: String) -> Result<()> {
         let target_ip = target_address.split(":").next().unwrap().to_string();
@@ -216,20 +205,7 @@ impl Node<SqlLiteStorage> {
         )
     }
 
-    //fn send_node_id(&self, target: Contact) -> Result<()> {
-    //    self.send(
-    //        target.ip_address.to_string(),
-    //        target.port,
-    //        MessageType::SendNodeId,
-    //    )
-    //}
-
-    //fn add_bootstrap_node_to_routing_table(&mut self, bootstrap_contact: Contact) {
-    //    println!("inserting bootstrap node : {:?}", bootstrap_contact);
-    //    self.routing_table.insert_node(&bootstrap_contact);
-    //}
-
-    // this is a generic send method that takes a target contact and a message type
+    // this is a generic send method that takes a target ip and port and a message type
     fn send(&self, target_ip: String, target_port: u16, message_type: MessageType) -> Result<()> {
         let data = Message {
             message_type,
@@ -260,6 +236,16 @@ impl Node<SqlLiteStorage> {
                 }
             });
         }
+    }
+
+    pub fn store(&self, key: String, value: String) -> Result<()> {
+        let key_id = SHA::hash_string(&key);
+        // NOTE : We will need to add an intermediate layer here to get the actual k-nearest nodes
+        // because the kademlia mechanism requires that you repeatedly ask the k-nearest-node for
+        // more close nodes until you end up with the final list
+        // I hope my comment makes sense
+        let target_nodes = self.routing_table.find_k_nearest_nodes(key_id);
+        self.send_store(key, value, target_nodes)
     }
 
     fn handle_incoming_message(&mut self, message: &Message) -> Result<()> {
