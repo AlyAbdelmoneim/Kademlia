@@ -1,104 +1,25 @@
 use crate::cli::Cli;
-use crate::cli::Commands;
 use crate::contact::Contact;
 use crate::logError;
 use crate::logInfo;
-use crate::logWarn;
+use crate::message_handler::handle_incoming_message;
 use crate::network::Message;
 use crate::network::MessageType;
 use crate::network::*;
+use crate::node_metadata::MetaData;
 use crate::routing_table::RoutingTable;
 use crate::sha::SHA;
 use crate::storage::SqlLiteStorage;
 use crate::storage::Storage;
 use bincode;
-use regex::Regex;
-use serde::Deserialize;
-use serde::Serialize;
-use std::fs;
-use std::io::ErrorKind;
 use std::io::Result;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::thread;
-
-#[derive(Serialize, Deserialize)]
-struct MetaData {
-    name: String,
-    node_id: SHA,
-    port: u16,
-    bootstrap_ip: Option<String>,
-    bootstrap_port: Option<u16>,
-}
-
-impl MetaData {
-    fn load_or_create(args: &Cli) -> Result<Self> {
-        match &args.command {
-            Commands::Init {
-                name,
-                port,
-                bootstrap_ip,
-                bootstrap_port,
-            } => {
-                let regex = Regex::new(r"\s+").unwrap();
-                let regexed_name = regex.replace_all(name, "_");
-                let file_name = format!("{}_metadata", regexed_name);
-                if Path::new(&file_name).exists() {
-                    let loaded_metadata: MetaData =
-                        serde_json::from_str(&fs::read_to_string(&file_name).unwrap()).unwrap();
-                    match port {
-                        // if found a file and you got a port number ==> override port in file, and
-                        // take node_id from file
-                        Some(port_number) => {
-                            let metadata = Self {
-                                name: loaded_metadata.name,
-                                port: *port_number,
-                                node_id: loaded_metadata.node_id,
-                                bootstrap_ip: bootstrap_ip.clone(),
-                                bootstrap_port: *bootstrap_port,
-                            };
-                            let _ = fs::write(
-                                file_name,
-                                serde_json::to_string_pretty(&metadata).unwrap(),
-                            );
-                            Ok(metadata)
-                        }
-                        // if founf a file without a port, load the data from the file directly
-                        None => Ok(loaded_metadata),
-                    }
-                } else {
-                    match port {
-                        // No file, but we have the port number, then create the file
-                        Some(port_number) => {
-                            let metadata = Self {
-                                name: (name.clone()),
-                                port: *port_number,
-                                node_id: SHA::generate(),
-                                bootstrap_ip: bootstrap_ip.clone(),
-                                bootstrap_port: *bootstrap_port,
-                            };
-                            let _ = fs::write(
-                                file_name,
-                                serde_json::to_string_pretty(&metadata).unwrap(),
-                            );
-                            Ok(metadata)
-                        }
-                        // No file and NO  port_number, panic yasta
-                        None => Err(std::io::Error::new(
-                            ErrorKind::Other,
-                            "Please provide port number, since it's the first time you initialize this node",
-                        )),
-                    }
-                }
-            }
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Node<T: Storage> {
@@ -134,12 +55,19 @@ impl Node<SqlLiteStorage> {
             if let Err(e) = node.send_ping(bootstrap_addr) {
                 logError!(
                     "Failed to connect to bootstrap node at {}:{}: {}",
-                    ip, port, e
+                    ip,
+                    port,
+                    e
                 );
             }
         }
 
-        logInfo!("Node is running! Port:{}, IP:{}, Node_ID:{:?}", node.contact.port, node.contact.ip_address, node.contact.node_id);
+        logInfo!(
+            "Node is running! Port:{}, IP:{}, Node_ID:{:?}",
+            node.contact.port,
+            node.contact.ip_address,
+            node.contact.node_id
+        );
 
         node
     }
@@ -183,7 +111,8 @@ impl Node<SqlLiteStorage> {
         for target in targets {
             logInfo!(
                 "Sending FIND_VALUE to {}:{}",
-                target.ip_address, target.port
+                target.ip_address,
+                target.port
             );
             self.send(
                 target.ip_address.to_string(),
@@ -195,7 +124,7 @@ impl Node<SqlLiteStorage> {
     }
 
     // this is to reply to a ping with a pong
-    fn send_pong(&self, target: Contact) -> Result<()> {
+    pub fn send_pong(&self, target: Contact) -> Result<()> {
         logInfo!("Sending PONG to {}:{}", target.ip_address, target.port);
         self.send(
             target.ip_address.to_string(),
@@ -231,7 +160,7 @@ impl Node<SqlLiteStorage> {
                 let msg_clone = msg.clone();
                 move || {
                     let mut node = node_clone.lock().unwrap();
-                    let _ = node.handle_incoming_message(&msg_clone);
+                    let _ = handle_incoming_message(&mut node, &msg_clone);
                 }
             });
         }
@@ -243,39 +172,5 @@ impl Node<SqlLiteStorage> {
         // Currently, this uses a single lookup, but Kademlia requires repeated queries to refine the list.
         let target_nodes = self.routing_table.find_k_nearest_nodes(key_id);
         self.send_store(key, value, target_nodes)
-    }
-
-    fn handle_incoming_message(&mut self, message: &Message) -> Result<()> {
-        let target = message.sender;
-        // update the storage with the new contacts
-        self.routing_table.insert_node(&target);
-
-        match &message.message_type {
-            MessageType::Ping => {
-                logInfo!("Received PING from {}:{}", target.ip_address, target.port);
-                self.send_pong(target)?;
-            }
-
-            MessageType::Store { key, value } => {
-                self.storage.store(key, value)?;
-            }
-
-            MessageType::Pong => {
-                logInfo!("Received PONG from {}:{}", target.ip_address, target.port);
-            }
-
-            MessageType::FindNode { wanted_id: _ } => {}
-
-            MessageType::FindValue { key } => match self.storage.get(key) {
-                Ok(Some(_value)) => {
-                    // maybe send it back to the node that asked
-                }
-                Ok(None) => {
-                    logWarn!("couldn't find a value for that key")
-                }
-                Err(e) => logError!("DB Error: {}", e.message),
-            },
-        }
-        Ok(())
     }
 }
