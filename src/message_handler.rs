@@ -10,21 +10,15 @@ use std::io::Result;
 
 pub fn handle_incoming_message(node: &mut Node<SqlLiteStorage>, message: &Message) -> Result<()> {
     let target = message.sender;
-    // update the storage with the new contacts
     node.routing_table.insert_node(&target);
 
     match &message.message_type {
         MessageType::Ping => handle_ping(node, target),
-
         MessageType::Store { key, value } => handle_store(node, key, value),
-
         MessageType::Pong => handle_pong(target),
-
         MessageType::FindNode { wanted_id: _ } => handle_find_node(),
-
         MessageType::FindValue { key } => handle_find_value(node, key),
-    }?;
-    Ok(())
+    }
 }
 
 fn handle_ping(node: &mut Node<SqlLiteStorage>, target: Contact) -> Result<()> {
