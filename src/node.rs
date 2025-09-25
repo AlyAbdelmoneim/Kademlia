@@ -1,4 +1,5 @@
 use crate::cli::Cli;
+use crate::config::ALPHA;
 use crate::contact::Contact;
 use crate::logError;
 use crate::logInfo;
@@ -133,6 +134,35 @@ impl Node<SqlLiteStorage> {
         )
     }
 
+    pub fn send_find_node(&self, wanted_id: SHA, targets: Vec<&Contact>) -> Result<()> {
+        let message_type = MessageType::FindNode { wanted_id };
+
+        logInfo!("Sending FIND_NODE {} nodes", targets.len());
+        for target in targets {
+            logInfo!("Sending FIND_NODE to {}:{}", target.ip_address, target.port);
+            self.send(
+                target.ip_address.to_string(),
+                target.port,
+                message_type.clone(),
+            )?;
+        }
+
+        Ok(())
+    }
+
+    pub fn send_find_node_response(&self, wanted_id: SHA, k_nearest: Vec<Contact>, target: &Contact) -> Result<()> {
+        let message_type = MessageType::FindNodeResponse { wanted_id, k_nearest };
+
+        logInfo!("Sending FIND_NODE_RESPONSE to {} node with address {}:{}", target.node_id, target.ip_address, target.port);
+        self.send(
+            target.ip_address.to_string(),
+            target.port,
+            message_type.clone(),
+        )?;
+
+        Ok(())
+    }
+
     // this is a generic send method that takes a target ip and port and a message type
     fn send(&self, target_ip: String, target_port: u16, message_type: MessageType) -> Result<()> {
         let data = Message {
@@ -172,5 +202,27 @@ impl Node<SqlLiteStorage> {
         // Currently, this uses a single lookup, but Kademlia requires repeated queries to refine the list.
         let target_nodes = self.routing_table.find_k_nearest_nodes(key_id);
         self.send_store(key, value, target_nodes)
+    }
+
+    //---> process_find_node
+    // { uuid_process: [STATE] } <--- map
+
+    pub fn find(&self, wanted_id: SHA, incoming_k_nearest: Vec<Contact>) -> Result<()> {
+        //---> merge k_nearest and pick alpha
+        //if incoming_k_nearest is empty --> then use local_k_nearest. or pass the incoming as the
+        //merge current_k_nearest with incoming_k_nearest
+        // let local_k_nearest = self.routing_table.find_k_nearest_nodes(wanted_id);
+        let k_nearest = incoming_k_nearest;
+        let alpha_nearest: Vec<&Contact> = k_nearest.iter().take(ALPHA).collect();
+        self.send_find_node(wanted_id, alpha_nearest)?;
+
+        //---> update state
+        //let state = self.get_find_node_state(wanted_id)
+        //state.visited.push(...alpha_nearest)
+        //state.k_nearest.push(...local_k_nearest)
+
+        //---> check termination condition
+
+        Ok(())
     }
 }

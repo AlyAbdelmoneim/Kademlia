@@ -2,10 +2,20 @@ use crate::distance::Distance;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
-use std::ops::BitXor;
+use std::{fmt::Display, ops::BitXor};
 
 #[derive(Copy, PartialEq, Eq, Ord, PartialOrd, Debug, Clone, Serialize, Deserialize)]
 pub struct SHA(pub [u8; 20]);
+
+
+impl Display for SHA {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for byte in self.0.iter() {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
+    }
+}
 
 impl SHA {
     pub fn generate() -> Self {
@@ -13,6 +23,14 @@ impl SHA {
         let mut id = [0u8; 20];
         rng.fill(&mut id);
         SHA(id)
+    }
+
+    pub fn from_string(id: &str) -> Self {
+        let bytes = id.as_bytes();
+        let mut array = [0u8; 20];
+        let len = std::cmp::min(bytes.len(), 20);
+        array[..len].copy_from_slice(&bytes[..len]);
+        SHA(array)
     }
 
     pub fn hash(key: &[u8]) -> Self {

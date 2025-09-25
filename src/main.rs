@@ -9,7 +9,11 @@ use std::{
 
 use clap::*;
 use kademlia::{
-    cli::{self}, logError, logInfo, logWarn, node::Node, storage::{SqlLiteStorage, Storage}
+    cli::{self},
+    logError, logInfo, logWarn,
+    node::Node,
+    sha::SHA,
+    storage::{SqlLiteStorage, Storage},
 };
 
 fn main() {
@@ -45,6 +49,15 @@ fn handle_input(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: &Arc<AtomicBoo
                     .lock()
                     .unwrap()
                     .send_ping(address.to_owned().to_owned());
+            }
+            ["find", node_id] => {
+                logInfo!("trying to find node with id {}", node_id);
+                let initiator_node = node.lock().unwrap();
+                let wanted_id = SHA::from_string(&node_id);
+                let _ = initiator_node.find(
+                    wanted_id,
+                    initiator_node.routing_table.find_k_nearest_nodes(wanted_id),
+                );
             }
             ["store", key, value] => {
                 // store it locally for now, it shouldn't be done like that in kademlia
