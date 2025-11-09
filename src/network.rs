@@ -65,6 +65,8 @@ pub enum MessageType {
     Store { key: String, value: String },
     FindValue { key: String },
     FindNode { wanted_id: SHA },
+    FindNodeResponse { nodes: Vec<Contact> },
+    FindValueResponse { value: Option<String>, nodes: Vec<Contact> },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
