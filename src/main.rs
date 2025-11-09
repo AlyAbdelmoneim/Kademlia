@@ -9,7 +9,10 @@ use std::{
 
 use clap::*;
 use kademlia::{
-    cli::{self}, logError, logInfo, logWarn, node::Node, storage::{SqlLiteStorage, Storage}
+    cli::{self},
+    logError, logInfo, logWarn,
+    node::Node,
+    storage::{SqlLiteStorage, Storage},
 };
 
 fn main() {
@@ -67,6 +70,23 @@ fn handle_input(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: &Arc<AtomicBoo
             ["delete", key] => {
                 let _ = node.lock().unwrap().storage.remove(key);
             }
+            ["routing_table_nodes"] => {
+                let rt = &node.lock().unwrap().routing_table;
+                logInfo!("Routing table nodes:");
+                for bucket in &rt.buckets {
+                    for contact in &bucket.nodes {
+                        logInfo!("IP: {}, Port: {}", contact.ip_address, contact.port);
+                    }
+                }
+            }
+            ["list"] => match node.lock().unwrap().storage.list_all() {
+                Ok(pairs) => {
+                    for (key, value) in pairs {
+                        logInfo!("Key: {}, Value: {}", key, value);
+                    }
+                }
+                Err(e) => logError!("Database error occurred: {}", e.message),
+            },
             _ => {
                 logWarn!("Unknown command. Available commands: ping, store, get, delete, close");
             }

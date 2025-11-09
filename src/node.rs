@@ -38,20 +38,28 @@ impl Node<SqlLiteStorage> {
         let bootstrap_ip = metadata.bootstrap_ip;
         let bootstrap_port = metadata.bootstrap_port;
 
-        let node = Self {
+        let mut node = Self {
             name: metadata.name,
             contact: Contact {
                 node_id: metadata.node_id,
-                ip_address: IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), // to be updated
+                ip_address: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), // to be updated
                 port: metadata.port,
             },
             routing_table: RoutingTable::new(metadata.node_id),
             storage: SqlLiteStorage::new("local_database.sqlite3").unwrap(),
-            network: Network::new("0.0.0.0", metadata.port).unwrap(),
+            network: Network::new("127.0.0.1", metadata.port).unwrap(),
         };
 
         if let (Some(ip), Some(port)) = (bootstrap_ip, bootstrap_port) {
             let bootstrap_addr = format!("{}:{}", ip, port);
+            // insert the bootstrap node to our routing routing_table
+            let ip_address: IpAddr = ip.parse().unwrap();
+            let bootstrap_contact = Contact {
+                node_id: SHA::hash_string(&bootstrap_addr),
+                ip_address: ip_address,
+                port,
+            };
+            node.routing_table.insert_node(&bootstrap_contact);
             if let Err(e) = node.send_ping(bootstrap_addr) {
                 logError!(
                     "Failed to connect to bootstrap node at {}:{}: {}",

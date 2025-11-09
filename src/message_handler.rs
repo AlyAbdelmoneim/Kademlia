@@ -28,6 +28,12 @@ fn handle_ping(node: &mut Node<SqlLiteStorage>, target: Contact) -> Result<()> {
 }
 
 fn handle_store(node: &mut Node<SqlLiteStorage>, key: &String, value: &String) -> Result<()> {
+    logInfo!(
+        "Received STORE from {}:{} for key: {}",
+        node.contact.ip_address,
+        node.contact.port,
+        key
+    );
     node.storage.store(key, value)?;
     Ok(())
 }

@@ -19,6 +19,7 @@ pub trait Storage<V = String> {
     fn get(&self, key: &str) -> StorageResult<Option<V>>;
     fn remove(&self, key: &str) -> StorageResult<()>;
     fn contains(&self, key: &str) -> StorageResult<bool>;
+    fn list_all(&self) -> StorageResult<Vec<(String, String)>>;
 }
 impl From<rusqlite::Error> for StorageError {
     fn from(error: rusqlite::Error) -> Self {
@@ -107,5 +108,17 @@ impl Storage for SqlLiteStorage {
 
     fn contains(&self, key: &str) -> StorageResult<bool> {
         self.get(key).map(|opt| opt.is_some())
+    }
+
+    fn list_all(&self) -> StorageResult<Vec<(String, String)>> {
+        let conn = Connection::open(self.db_name.clone())?;
+        let mut stmt = conn.prepare("SELECT key, value FROM data")?;
+        let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+        Ok(results)
     }
 }

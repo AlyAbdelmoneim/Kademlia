@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 pub struct KBucket {
     pub i: usize, // each bucket's nodes-ids range is from 2^i to 2^(i+1)
     pub capacity: usize,
-    nodes: VecDeque<Contact>,
+    pub nodes: VecDeque<Contact>,
 }
 
 impl KBucket {
@@ -23,7 +23,7 @@ impl KBucket {
         self.nodes.len() == self.capacity
     }
 
-    // Note : we will never actually need to add in the front, 
+    // Note : we will never actually need to add in the front,
     // nor we will need to sort the
     // list manually because it's ensured that the list is always sorted by last time seen
 

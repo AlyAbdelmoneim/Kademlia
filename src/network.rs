@@ -58,7 +58,7 @@ impl Network {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum MessageType {
     Ping,
     Pong,
@@ -67,7 +67,7 @@ pub enum MessageType {
     FindNode { wanted_id: SHA },
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Message {
     pub message_type: MessageType,
     pub sender: Contact,

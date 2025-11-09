@@ -1,10 +1,14 @@
 use crate::{
-    bucket::KBucket, config::{ID_BITS, K}, contact::Contact, logInfo, sha::SHA
+    bucket::KBucket,
+    config::{ID_BITS, K},
+    contact::Contact,
+    logInfo,
+    sha::SHA,
 };
 
 #[derive(Debug, Clone)]
 pub struct RoutingTable {
-    buckets: [KBucket; ID_BITS],
+    pub buckets: [KBucket; ID_BITS],
     local_node_id: SHA,
 }
 
@@ -34,7 +38,8 @@ impl RoutingTable {
     pub fn insert_node(&mut self, new_node: &Contact) {
         logInfo!(
             "inserting node with address {}:{} to our routing table",
-            new_node.ip_address, new_node.port
+            new_node.ip_address,
+            new_node.port
         );
         let bucket = &mut self.buckets[self.find_bucket(new_node.node_id)];
         bucket.add(&new_node);
@@ -67,5 +72,13 @@ impl RoutingTable {
         }
 
         nodes
+    }
+
+    pub fn get_all_nodes(&self) -> Vec<Contact> {
+        let mut all_nodes = Vec::new();
+        for bucket in &self.buckets {
+            all_nodes.extend(bucket.get_nodes());
+        }
+        all_nodes
     }
 }
