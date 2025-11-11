@@ -58,10 +58,11 @@ fn handle_input(node: Arc<Mutex<Node<SqlLiteStorage>>>, shutdown: &Arc<AtomicBoo
                     .store((*key).to_string(), (*value).to_string());
                 logInfo!("stored the pair ({}, {})", key, value);
             }
-            ["get", key] => match node.lock().unwrap().storage.get(key) {
-                Ok(Some(value)) => logInfo!("{}", value),
-                Ok(None) => logInfo!("couldn't find a value for this key"),
-                Err(e) => logError!("Database error occurred: {}", e.message),
+            ["get", key] => {
+                match node.lock().unwrap().get_value((*key).to_string()) {
+                    Some(value) => logInfo!("Found value: {}", value),
+                    None => logInfo!("couldn't find a value for this key"),
+                }
             },
             ["close"] => {
                 shutdown.store(true, Ordering::SeqCst);
