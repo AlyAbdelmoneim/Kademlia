@@ -4,3 +4,6 @@ metadata*
 *_metadata
 *.sqlite3
 local_database*
+.DS_Store
+*.sqlite3
+
